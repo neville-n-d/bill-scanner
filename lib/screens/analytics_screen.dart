@@ -38,6 +38,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               child: CircularProgressIndicator(),
             );
           }
+          print(billProvider.bills);
 
           if (billProvider.bills.isEmpty) {
             return _buildEmptyState();
@@ -51,8 +52,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildChartSelector(),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _buildChartSelector(),
+                      ),
+                    ],
+                  ),
+                  //_buildChartSelector(),
                   const SizedBox(height: 24),
                   _buildChart(),
                   const SizedBox(height: 24),
@@ -76,6 +87,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
               'Chart Type',
@@ -87,6 +99,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
+              alignment: WrapAlignment.center,
               children: _chartTypes.map((type) {
                 final isSelected = _selectedChartType == type;
                 return FilterChip(

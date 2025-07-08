@@ -59,6 +59,11 @@ class BillProvider with ChangeNotifier {
     }
   }
 
+  Future<void> deleteAll() async {
+    _bills.clear();
+    await loadStatistics();
+  }
+
   // Load sample data for UI testing
   Future<void> loadSampleData() async {
     try {
@@ -244,7 +249,7 @@ class BillProvider with ChangeNotifier {
       );
 
       // Save to database
-      await DatabaseService.insertBill(bill);
+      //await DatabaseService.insertBill(bill);
 
       // Add to local list
       _bills.insert(0, bill);
@@ -285,13 +290,14 @@ class BillProvider with ChangeNotifier {
   Future<void> deleteBill(String billId) async {
     _setLoading(true);
     try {
-      await DatabaseService.deleteBill(billId);
+      print(billId);
+      //await DatabaseService.deleteBill(billId);
       _bills.removeWhere((bill) => bill.id == billId);
       
       if (_currentBill?.id == billId) {
         _currentBill = null;
       }
-      
+      print(_bills.length);
       await loadStatistics();
       _error = null;
     } catch (e) {

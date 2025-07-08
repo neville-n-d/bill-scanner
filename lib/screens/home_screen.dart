@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'camera_screen.dart';
+import '../screens/bill_detail_screen.dart';
 import '../providers/bill_provider.dart';
 import '../widgets/stat_card.dart';
 import '../widgets/bill_card.dart';
@@ -102,7 +104,12 @@ class HomeScreen extends StatelessWidget {
               ElevatedButton.icon(
                 onPressed: () {
                   // Navigate to camera screen
-                  Navigator.pushNamed(context, '/camera');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CameraScreen(),
+                    ),
+                );
                 },
                 icon: const Icon(Icons.camera_alt),
                 label: const Text('Scan Your First Bill'),
@@ -212,7 +219,14 @@ class HomeScreen extends StatelessWidget {
         const SizedBox(height: 16),
         ...recentBills.map((bill) => Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: BillCard(bill: bill),
+          child: BillCard(bill: bill, onTap: () {
+            Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => BillDetailScreen(bill: bill),
+                        ),
+                      );
+          },),
         )),
       ],
     );

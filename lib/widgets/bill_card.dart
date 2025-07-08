@@ -1,6 +1,7 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'dart:io';
 import '../models/electricity_bill.dart';
 
 class BillCard extends StatelessWidget {
@@ -25,9 +26,7 @@ class BillCard extends StatelessWidget {
             children: [
               _buildImagePreview(),
               const SizedBox(width: 16),
-              Expanded(
-                child: _buildBillInfo(),
-              ),
+              Expanded(child: _buildBillInfo()),
               _buildAmountInfo(),
             ],
           ),
@@ -37,6 +36,30 @@ class BillCard extends StatelessWidget {
   }
 
   Widget _buildImagePreview() {
+    Widget imageWidget;
+
+    if (kIsWeb) {
+      // Placeholder or Image.network (if `bill.imagePath` is a URL)
+      imageWidget = Image.network(
+        bill.imagePath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _fallbackImage();
+        },
+      );
+    } else {
+      // Mobile/desktop: use FileImage
+      imageWidget = Image(
+        image: FileImage(
+          File(bill.imagePath),
+        ),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _fallbackImage();
+        },
+      );
+    }
+
     return Container(
       width: 60,
       height: 60,
@@ -52,20 +75,15 @@ class BillCard extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: Image.file(
-          File(bill.imagePath),
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              color: Colors.grey[300],
-              child: const Icon(
-                Icons.receipt,
-                color: Colors.grey,
-              ),
-            );
-          },
-        ),
+        child: imageWidget,
       ),
+    );
+  }
+
+  Widget _fallbackImage() {
+    return Container(
+      color: Colors.grey[300],
+      child: const Icon(Icons.receipt, color: Colors.grey),
     );
   }
 
@@ -75,28 +93,19 @@ class BillCard extends StatelessWidget {
       children: [
         Text(
           DateFormat('MMM dd, yyyy').format(bill.billDate),
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
         Text(
           '${bill.consumptionKwh.toStringAsFixed(1)} kWh',
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey[600],
-          ),
+          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
         ),
         const SizedBox(height: 4),
         Text(
           bill.summary.length > 50
               ? '${bill.summary.substring(0, 50)}...'
               : bill.summary,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[500],
-          ),
+          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
@@ -119,12 +128,9 @@ class BillCard extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           DateFormat('MMM dd').format(bill.createdAt),
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[500],
-          ),
+          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
         ),
       ],
     );
   }
-} 
+}

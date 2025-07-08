@@ -180,8 +180,8 @@ class AIService {
     return {
       'summary': 'This is a mock electricity bill summary for UI testing. The bill shows typical residential consumption patterns with a total amount of \$125.50 for 450 kWh of electricity.',
       'billDate': DateTime.now().toIso8601String().split('T')[0],
-      'totalAmount': 125.50,
-      'consumptionKwh': 450.0,
+      'totalAmount': 325.50,
+      'consumptionKwh': 1000.0,
       'ratePerKwh': 0.12,
       'insights': [
         'Your electricity consumption is within normal range for residential use',

@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import '../providers/bill_provider.dart';
 import '../models/electricity_bill.dart';
 import '../widgets/insight_card.dart';
 
@@ -65,7 +67,7 @@ class BillDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildBillImage(),
+            //_buildBillImage(),
             const SizedBox(height: 24),
             _buildBillSummary(),
             const SizedBox(height: 24),
@@ -265,6 +267,7 @@ class BillDetailScreen extends StatelessWidget {
   }
 
   void _showDeleteDialog(BuildContext context) {
+    final billProvider = context.read<BillProvider>();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -276,8 +279,9 @@ class BillDetailScreen extends StatelessWidget {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               // TODO: Implement delete functionality
+              await billProvider.deleteBill(bill.id);
               Navigator.pop(context);
               Navigator.pop(context);
             },

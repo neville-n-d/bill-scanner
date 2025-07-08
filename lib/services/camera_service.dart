@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
@@ -94,25 +95,31 @@ class CameraService {
   }
 
   // Save image to app directory
-  static Future<String> saveImageToAppDirectory(File imageFile) async {
-    try {
-      final Directory appDir = await getApplicationDocumentsDirectory();
-      final String fileName = 'bill_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final String filePath = path.join(appDir.path, 'bills', fileName);
-
-      // Create bills directory if it doesn't exist
-      final Directory billsDir = Directory(path.dirname(filePath));
-      if (!await billsDir.exists()) {
-        await billsDir.create(recursive: true);
-      }
-
-      // Copy image to app directory
-      await imageFile.copy(filePath);
-      return filePath;
-    } catch (e) {
-      throw Exception('Failed to save image: $e');
-    }
+static Future<String> saveImageToAppDirectory(File imageFile) async {
+  // On Web, skip saving and return a placeholder or warning message
+  if (kIsWeb) {
+    // You might return the image name or a fake path — whatever makes sense for your app
+    return 'web_unsaved_image_${DateTime.now().millisecondsSinceEpoch}.jpg';
   }
+
+  try {
+    final Directory appDir = await getApplicationDocumentsDirectory();
+    final String fileName = 'bill_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final String filePath = path.join(appDir.path, 'bills', fileName);
+
+    // Create bills directory if it doesn't exist
+    final Directory billsDir = Directory(path.dirname(filePath));
+    if (!await billsDir.exists()) {
+      await billsDir.create(recursive: true);
+    }
+
+    // Copy image to app directory
+    await imageFile.copy(filePath);
+    return filePath;
+  } catch (e) {
+    throw Exception('Failed to save image: $e');
+  }
+}
 
   // Check if camera is available
   static Future<bool> isCameraAvailable() async {

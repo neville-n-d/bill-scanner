@@ -232,6 +232,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showClearDataDialog() {
+    final billProvider = context.read<BillProvider>();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -245,8 +246,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async{
               // TODO: Implement clear data functionality
+              await billProvider.deleteAll();
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
