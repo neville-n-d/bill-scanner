@@ -6,29 +6,38 @@ import '../models/electricity_bill.dart';
 class BillCard extends StatelessWidget {
   final ElectricityBill bill;
   final VoidCallback? onTap;
+  final VoidCallback? onDelete;
+  final bool isSelected;
+  final VoidCallback? onSelectionChanged;
 
   const BillCard({
     super.key,
     required this.bill,
     this.onTap,
+    this.onDelete,
+    this.isSelected = false,
+    this.onSelectionChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
+      color: isSelected ? Colors.blue.withOpacity(0.1) : null,
       child: InkWell(
-        onTap: onTap,
+        onTap: onSelectionChanged != null ? onSelectionChanged : onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
+              if (onSelectionChanged != null) _buildSelectionCheckbox(),
               _buildImagePreview(),
               const SizedBox(width: 16),
               Expanded(
                 child: _buildBillInfo(),
               ),
               _buildAmountInfo(),
+              if (onDelete != null && onSelectionChanged == null) _buildDeleteButton(),
             ],
           ),
         ),
@@ -125,6 +134,31 @@ class BillCard extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSelectionCheckbox() {
+    return Container(
+      margin: const EdgeInsets.only(right: 12),
+      child: Checkbox(
+        value: isSelected,
+        onChanged: (value) {
+          onSelectionChanged?.call();
+        },
+        activeColor: Colors.blue,
+      ),
+    );
+  }
+
+  Widget _buildDeleteButton() {
+    return IconButton(
+      onPressed: onDelete,
+      icon: const Icon(
+        Icons.delete_outline,
+        color: Colors.red,
+        size: 20,
+      ),
+      tooltip: 'Delete bill',
     );
   }
 } 

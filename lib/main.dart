@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/bill_provider.dart';
+import 'providers/auth_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/camera_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/analytics_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/login_screen.dart';
 
 void main() {
   runApp(const ElectricityBillApp());
@@ -18,6 +20,7 @@ class ElectricityBillApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => BillProvider()),
       ],
       child: MaterialApp(
@@ -52,9 +55,48 @@ class ElectricityBillApp extends StatelessWidget {
             ),
           ),
         ),
-        home: const MainScreen(),
+        home: const AuthWrapper(),
         debugShowCheckedModeBanner: false,
       ),
+    );
+  }
+}
+
+class AuthWrapper extends StatefulWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    // Initialize auth provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AuthProvider>().initialize();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        if (authProvider.isLoading) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        if (authProvider.isLoggedIn) {
+          return const MainScreen();
+        }
+
+        return const LoginScreen();
+      },
     );
   }
 }
@@ -79,9 +121,22 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize the provider
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<BillProvider>().initialize();
+    // Initialize the provider and fetch bills after authentication
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final billProvider = context.read<BillProvider>();
+      final authProvider = context.read<AuthProvider>();
+      
+      // Set up auth state change callback
+      authProvider.setAuthStateCallback((isLoggedIn) {
+        billProvider.onAuthStateChanged(isLoggedIn);
+      });
+      
+      await billProvider.initialize();
+      
+      // If user is authenticated, fetch bills from backend
+      if (authProvider.isLoggedIn) {
+        await billProvider.loadBills();
+      }
     });
   }
 

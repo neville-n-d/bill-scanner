@@ -15,12 +15,72 @@ class CameraScreen extends StatefulWidget {
 class _CameraScreenState extends State<CameraScreen> {
   bool _isInitialized = false;
   bool _isProcessing = false;
+  bool _isCheckingPermission = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _initializeCamera();
+    _checkAndRequestPermission();
+  }
+
+  Future<void> _checkAndRequestPermission() async {
+    setState(() {
+      _isCheckingPermission = true;
+      _error = null;
+    });
+
+    try {
+      // Check if camera permission is already granted
+      final hasPermission = await CameraService.hasCameraPermission();
+      
+      if (hasPermission) {
+        // Permission already granted, initialize camera
+        await _initializeCamera();
+      } else {
+        // Permission not granted, show permission request UI
+        setState(() {
+          _isCheckingPermission = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to check camera permission: $e';
+        _isCheckingPermission = false;
+      });
+    }
+  }
+
+  Future<void> _requestPermission() async {
+    setState(() {
+      _isCheckingPermission = true;
+      _error = null;
+    });
+
+    try {
+      final granted = await CameraService.requestCameraPermission();
+      
+      if (granted) {
+        await _initializeCamera();
+      } else {
+        // Check if permission is permanently denied
+        final isPermanentlyDenied = await CameraService.isPermissionPermanentlyDenied();
+        
+        setState(() {
+          if (isPermanentlyDenied) {
+            _error = 'Camera permission is permanently denied. Please enable camera access in your device settings to scan bills.';
+          } else {
+            _error = 'Camera permission is required to scan bills. Please grant camera permission to continue.';
+          }
+          _isCheckingPermission = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to request camera permission: $e';
+        _isCheckingPermission = false;
+      });
+    }
   }
 
   Future<void> _initializeCamera() async {
@@ -28,11 +88,13 @@ class _CameraScreenState extends State<CameraScreen> {
       await CameraService.initialize();
       setState(() {
         _isInitialized = true;
+        _isCheckingPermission = false;
         _error = null;
       });
     } catch (e) {
       setState(() {
         _error = 'Failed to initialize camera: $e';
+        _isCheckingPermission = false;
       });
     }
   }
@@ -112,17 +174,21 @@ class _CameraScreenState extends State<CameraScreen> {
       return _buildErrorView();
     }
 
-    if (!_isInitialized) {
+    if (_isCheckingPermission) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text('Initializing camera...'),
+            Text('Checking camera permission...'),
           ],
         ),
       );
+    }
+
+    if (!_isInitialized) {
+      return _buildPermissionRequestView();
     }
 
     return Stack(
@@ -253,7 +319,7 @@ class _CameraScreenState extends State<CameraScreen> {
     );
   }
 
-  Widget _buildErrorView() {
+  Widget _buildPermissionRequestView() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -261,13 +327,64 @@ class _CameraScreenState extends State<CameraScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(
-              Icons.error_outline,
+              Icons.camera_alt,
               size: 64,
-              color: Colors.red,
+              color: Colors.blue,
             ),
             const SizedBox(height: 16),
             Text(
-              'Camera Error',
+              'Camera Permission Required',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'This app needs camera access to scan your electricity bills. Please grant camera permission to continue.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: _requestPermission,
+              icon: const Icon(Icons.camera_alt),
+              label: const Text('Grant Camera Permission'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextButton.icon(
+              onPressed: _pickFromGallery,
+              icon: const Icon(Icons.photo_library),
+              label: const Text('Pick from Gallery Instead'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorView() {
+    final isPermissionError = _error?.contains('permission') == true;
+    
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isPermissionError ? Icons.camera_alt : Icons.error_outline,
+              size: 64,
+              color: isPermissionError ? Colors.orange : Colors.red,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isPermissionError ? 'Camera Permission Required' : 'Camera Error',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -281,14 +398,32 @@ class _CameraScreenState extends State<CameraScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _initializeCamera,
-              child: const Text('Retry'),
-            ),
-            const SizedBox(height: 12),
-            TextButton(
+            if (isPermissionError) ...[
+              ElevatedButton.icon(
+                onPressed: _requestPermission,
+                icon: const Icon(Icons.camera_alt),
+                label: const Text('Grant Permission'),
+              ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: () async {
+                  await CameraService.openAppSettingsForPermission();
+                },
+                icon: const Icon(Icons.settings),
+                label: const Text('Open Settings'),
+              ),
+              const SizedBox(height: 12),
+            ] else ...[
+              ElevatedButton(
+                onPressed: _checkAndRequestPermission,
+                child: const Text('Retry'),
+              ),
+              const SizedBox(height: 12),
+            ],
+            TextButton.icon(
               onPressed: _pickFromGallery,
-              child: const Text('Pick from Gallery Instead'),
+              icon: const Icon(Icons.photo_library),
+              label: const Text('Pick from Gallery Instead'),
             ),
           ],
         ),

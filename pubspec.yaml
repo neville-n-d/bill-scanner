@@ -1,5 +1,5 @@
 name: electricity_bill_app
-description: "An electricity bill analysis app with OCR and AI-powered insights."
+description: "An electricity bill analysis app with AI-powered insights using Azure OpenAI Vision."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -40,8 +40,7 @@ dependencies:
   image_picker: ^1.0.7
   image: ^4.1.7
   
-  # OCR functionality (disabled for UI testing)
-  # google_ml_kit: ^0.17.0
+  # AI-powered image analysis using Azure OpenAI Vision
   
   # HTTP requests for API calls
   http: ^1.2.0

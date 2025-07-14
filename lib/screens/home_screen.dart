@@ -37,14 +37,14 @@ class HomeScreen extends StatelessWidget {
       body: Consumer<BillProvider>(
         builder: (context, billProvider, child) {
           if (billProvider.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           return RefreshIndicator(
             onRefresh: () async {
               await billProvider.initialize();
+              // Also refresh from backend to get AI-processed data
+              await billProvider.refreshBillsFromBackend();
             },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -76,7 +76,7 @@ class HomeScreen extends StatelessWidget {
   Widget _buildWelcomeSection(BuildContext context, BillProvider billProvider) {
     final now = DateTime.now();
     final greeting = _getGreeting(now.hour);
-    
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -93,9 +93,9 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Ready to analyze your electricity bills and save money?',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.grey[600],
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
             ),
             const SizedBox(height: 16),
             if (billProvider.bills.isEmpty)
@@ -119,7 +119,7 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildQuickStats(BuildContext context, BillProvider billProvider) {
     final stats = billProvider.statistics;
-    
+
     if (stats == null || stats.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -129,9 +129,9 @@ class HomeScreen extends StatelessWidget {
       children: [
         Text(
           'Quick Stats',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
         Row(
@@ -148,7 +148,8 @@ class HomeScreen extends StatelessWidget {
             Expanded(
               child: StatCard(
                 title: 'Avg. Consumption',
-                value: '${(stats['avgConsumption'] ?? 0).toStringAsFixed(1)} kWh',
+                value:
+                    '${(billProvider.averageConsumption ?? 0).toStringAsFixed(1)} kWh',
                 icon: Icons.electric_bolt,
                 color: Colors.orange,
               ),
@@ -161,7 +162,8 @@ class HomeScreen extends StatelessWidget {
             Expanded(
               child: StatCard(
                 title: 'Avg. Amount',
-                value: '\$${(stats['avgAmount'] ?? 0).toStringAsFixed(2)}',
+                value:
+                    '\$${(billProvider.averageAmount ?? 0).toStringAsFixed(2)}',
                 icon: Icons.attach_money,
                 color: Colors.green,
               ),
@@ -183,7 +185,7 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildRecentBills(BuildContext context, BillProvider billProvider) {
     final recentBills = billProvider.bills.take(3).toList();
-    
+
     if (recentBills.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -196,9 +198,9 @@ class HomeScreen extends StatelessWidget {
           children: [
             Text(
               'Recent Bills',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             TextButton(
               onPressed: () {
@@ -210,10 +212,12 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        ...recentBills.map((bill) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: BillCard(bill: bill),
-        )),
+        ...recentBills.map(
+          (bill) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: BillCard(bill: bill),
+          ),
+        ),
       ],
     );
   }
@@ -224,9 +228,9 @@ class HomeScreen extends StatelessWidget {
       children: [
         Text(
           'Energy Saving Tips',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
         EnergyTipsCard(),
@@ -285,4 +289,4 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
-} 
+}

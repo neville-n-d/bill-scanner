@@ -1,14 +1,13 @@
 # Electricity Bill Analyzer
 
-A Flutter app that uses OCR and AI to analyze electricity bills, providing insights and energy-saving recommendations.
+A Flutter app that uses Azure OpenAI Vision to analyze electricity bills, providing insights and energy-saving recommendations.
 
 ## Features
 
 ### 📸 Bill Scanning & Processing
 - **Camera Integration**: Take photos of electricity bills directly in the app
 - **Gallery Import**: Import existing bill images from your device
-- **OCR Technology**: Extract text from bill images using Google ML Kit
-- **AI Analysis**: Generate summaries and insights using Copilot API
+- **AI Analysis**: Direct image analysis using Azure OpenAI Vision for text extraction and insights
 
 ### 📊 Analytics & Insights
 - **Interactive Charts**: View consumption patterns and trends over time
@@ -51,9 +50,11 @@ A Flutter app that uses OCR and AI to analyze electricity bills, providing insig
 
 3. **Configure API Keys**
    
-   Open `lib/services/ai_service.dart` and replace the placeholder API key:
+   The app is already configured with Azure OpenAI. If you need to update the configuration, open `lib/services/ai_service.dart` and update the Azure OpenAI settings:
    ```dart
-   static const String _apiKey = 'YOUR_COPILOT_API_KEY'; // Replace with your actual API key
+   static const String _azureEndpoint = "your-azure-endpoint";
+   static const String _deploymentName = "your-deployment-name";
+   static const String _apiKey = "your-azure-api-key";
    ```
 
 4. **Platform-specific setup**
@@ -118,7 +119,6 @@ lib/
 ```
 
 ### Key Dependencies
-- **google_ml_kit**: OCR text recognition
 - **camera**: Camera functionality
 - **sqflite**: Local database
 - **provider**: State management
@@ -126,25 +126,26 @@ lib/
 - **http**: API communication
 
 ### Services
-- **OCRService**: Text extraction from images
-- **AIService**: AI-powered analysis and insights
+- **AIService**: Azure OpenAI Vision for image analysis and insights
 - **DatabaseService**: Local data storage
 - **CameraService**: Camera and image handling
 
 ## API Configuration
 
-### Copilot API Setup
+### Azure OpenAI Setup
 
-1. **Get API Key**: Sign up for GitHub Copilot API access
-2. **Configure Endpoint**: Update the API endpoint in `AIService`
-3. **Test Connection**: Verify API connectivity
+The app is configured to use Azure OpenAI Vision for bill analysis. The current configuration includes:
+
+- **Endpoint**: Azure OpenAI endpoint for your region
+- **Deployment**: GPT-4 Vision model deployment
+- **API Key**: Secure authentication key
 
 ### Custom AI Integration
 
-You can easily replace the Copilot API with other AI services:
-- OpenAI GPT
-- Google Cloud AI
-- Azure Cognitive Services
+You can easily replace Azure OpenAI with other AI services:
+- OpenAI GPT-4 Vision
+- Google Cloud Vision AI
+- AWS Rekognition
 - Custom ML models
 
 ## Contributing

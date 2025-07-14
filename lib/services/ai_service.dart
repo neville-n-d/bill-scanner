@@ -1,12 +1,18 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../utils/config.dart';
 
 class AIService {
+  // Azure OpenAI Configuration
+  static const String _azureEndpoint = "https://nevil-mctuioss-eastus2.openai.azure.com/";
+  static const String _deploymentName = "gpt-4.1";
+  static const String _apiKey = "EzBHgcxCWWIdYZb90MF6funaU7P1SOBy6YCidKz35MmKhytHaT0kJQQJ99BGACHYHv6XJ3w3AAAAACOG4H6y";
+  static const String _apiVersion = "2025-01-01-preview";
+  
   // API calls controlled by config
   static bool get _apiEnabled => AppConfig.enableAI;
-  static const String _baseUrl = 'https://api.githubcopilot.com'; // Replace with actual Copilot API endpoint
-  static const String _apiKey = 'YOUR_COPILOT_API_KEY'; // Replace with your actual API key
 
   static Future<Map<String, dynamic>> generateBillSummary(String extractedText) async {
     // Return mock data for UI testing
@@ -16,13 +22,12 @@ class AIService {
 
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/v1/chat/completions'),
+        Uri.parse('$_azureEndpoint/openai/deployments/$_deploymentName/chat/completions?api-version=$_apiVersion'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_apiKey',
+          'api-key': _apiKey,
         },
         body: jsonEncode({
-          'model': 'gpt-4', // or appropriate model
           'messages': [
             {
               'role': 'system',
@@ -74,6 +79,109 @@ class AIService {
     }
   }
 
+  /// New method for analyzing bill images using Azure OpenAI Vision
+  static Future<Map<String, dynamic>> analyzeBillImage(Uint8List imageBytes) async {
+    // Return mock data for UI testing
+    if (!_apiEnabled) {
+      return _generateMockBillSummary("Image analysis");
+    }
+
+    try {
+      // Convert image to base64
+      final base64Image = base64Encode(imageBytes);
+      
+      final response = await http.post(
+        Uri.parse('$_azureEndpoint/openai/deployments/$_deploymentName/chat/completions?api-version=$_apiVersion'),
+        headers: {
+          'Content-Type': 'application/json',
+          'api-key': _apiKey,
+        },
+        body: jsonEncode({
+          'messages': [
+            {
+              'role': 'system',
+              'content': [
+                {
+                  'type': 'text',
+                  'text': '''You are an expert in analyzing electricity bills. Extract key information and provide insights in the following JSON format:
+{
+  "summary": "Brief summary of the bill",
+  "billDate": "YYYY-MM-DD",
+  "totalAmount": 0.0,
+  "consumptionKwh": 0.0,
+  "ratePerKwh": 0.0,
+  "insights": ["Array of insights about the bill"],
+  "recommendations": ["Array of energy-saving recommendations"]
+}'''
+                }
+              ]
+            },
+            {
+              'role': 'user',
+              'content': [
+                {
+                  'type': 'image_url',
+                  'image_url': {
+                    'url': 'data:image/jpeg;base64,$base64Image'
+                  }
+                },
+                {
+                  'type': 'text',
+                  'text': 'Create a summary of this electricity bill'
+                }
+              ]
+            }
+          ],
+          'max_tokens': 800,
+          'temperature': 1,
+          'top_p': 1,
+          'frequency_penalty': 0,
+          'presence_penalty': 0,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final content = data['choices'][0]['message']['content'];
+        
+        // Try to parse the JSON response
+        try {
+          return jsonDecode(content);
+        } catch (e) {
+          // If JSON parsing fails, return a structured response
+          return {
+            'summary': content,
+            'billDate': DateTime.now().toIso8601String().split('T')[0],
+            'totalAmount': 0.0,
+            'consumptionKwh': 0.0,
+            'ratePerKwh': 0.0,
+            'insights': ['Unable to extract specific data from image'],
+            'recommendations': ['Consider uploading a clearer image for better analysis'],
+          };
+        }
+      } else {
+        throw Exception('Failed to analyze image: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error analyzing bill image: $e');
+    }
+  }
+
+  /// Method to analyze bill from file path (for PDF conversion support)
+  static Future<Map<String, dynamic>> analyzeBillFromFile(String filePath) async {
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) {
+        throw Exception('File not found: $filePath');
+      }
+
+      final imageBytes = await file.readAsBytes();
+      return await analyzeBillImage(imageBytes);
+    } catch (e) {
+      throw Exception('Error reading file: $e');
+    }
+  }
+
   static Future<List<String>> generateEnergySavingRecommendations(
     List<Map<String, dynamic>> billHistory,
   ) async {
@@ -84,13 +192,12 @@ class AIService {
 
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/v1/chat/completions'),
+        Uri.parse('$_azureEndpoint/openai/deployments/$_deploymentName/chat/completions?api-version=$_apiVersion'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_apiKey',
+          'api-key': _apiKey,
         },
         body: jsonEncode({
-          'model': 'gpt-4',
           'messages': [
             {
               'role': 'system',
@@ -136,13 +243,12 @@ class AIService {
 
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/v1/chat/completions'),
+        Uri.parse('$_azureEndpoint/openai/deployments/$_deploymentName/chat/completions?api-version=$_apiVersion'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_apiKey',
+          'api-key': _apiKey,
         },
         body: jsonEncode({
-          'model': 'gpt-4',
           'messages': [
             {
               'role': 'system',

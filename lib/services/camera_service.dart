@@ -13,16 +13,16 @@ class CameraService {
 
   // Initialize camera
   static Future<void> initialize() async {
-    // Request camera permission
-    final status = await Permission.camera.request();
+    // Check camera permission first
+    final status = await Permission.camera.status;
     if (status != PermissionStatus.granted) {
-      throw Exception('Camera permission not granted');
+      throw Exception('Camera permission not granted. Please grant camera permission to use this feature.');
     }
 
     // Get available cameras
     _cameras = await availableCameras();
     if (_cameras == null || _cameras!.isEmpty) {
-      throw Exception('No cameras available');
+      throw Exception('No cameras available on this device');
     }
 
     // Initialize camera controller with back camera
@@ -122,6 +122,17 @@ class CameraService {
     } catch (e) {
       return false;
     }
+  }
+
+  // Check if camera permission is permanently denied
+  static Future<bool> isPermissionPermanentlyDenied() async {
+    final status = await Permission.camera.status;
+    return status == PermissionStatus.permanentlyDenied;
+  }
+
+  // Open app settings for permission
+  static Future<void> openAppSettingsForPermission() async {
+    await openAppSettings();
   }
 
   // Check camera permission

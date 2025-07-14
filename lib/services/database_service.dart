@@ -17,21 +17,17 @@ class DatabaseService {
 
   static Future<Database> _initDatabase() async {
     print('🗄️ Initializing database...');
-    
+
     // Initialize database factory for web
     if (kIsWeb) {
       print('🌐 Running on web platform, initializing FFI database factory');
       databaseFactory = databaseFactoryFfi;
     }
-    
+
     final String path = join(await getDatabasesPath(), 'electricity_bills.db');
     print('🗄️ Database path: $path');
-    
-    return await openDatabase(
-      path,
-      version: 1,
-      onCreate: _createTable,
-    );
+
+    return await openDatabase(path, version: 1, onCreate: _createTable);
   }
 
   static Future<void> _createTable(Database db, int version) async {
@@ -39,6 +35,7 @@ class DatabaseService {
     await db.execute('''
       CREATE TABLE $_tableName(
         id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
         imagePath TEXT NOT NULL,
         extractedText TEXT NOT NULL,
         summary TEXT NOT NULL,
@@ -57,23 +54,20 @@ class DatabaseService {
   // Insert a new electricity bill
   static Future<void> insertBill(ElectricityBill bill) async {
     final db = await database;
-    await db.insert(
-      _tableName,
-      {
-        'id': bill.id,
-        'imagePath': bill.imagePath,
-        'extractedText': bill.extractedText,
-        'summary': bill.summary,
-        'billDate': bill.billDate.toIso8601String(),
-        'totalAmount': bill.totalAmount,
-        'consumptionKwh': bill.consumptionKwh,
-        'ratePerKwh': bill.ratePerKwh,
-        'createdAt': bill.createdAt.toIso8601String(),
-        'tags': bill.tags.join(','),
-        'additionalData': bill.additionalData.toString(),
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert(_tableName, {
+      'id': bill.id,
+      'userId': bill.userId,
+      'imagePath': bill.imagePath,
+      'extractedText': bill.extractedText,
+      'summary': bill.summary,
+      'billDate': bill.billDate.toIso8601String(),
+      'totalAmount': bill.totalAmount,
+      'consumptionKwh': bill.consumptionKwh,
+      'ratePerKwh': bill.ratePerKwh,
+      'createdAt': bill.createdAt.toIso8601String(),
+      'tags': bill.tags.join(','),
+      'additionalData': bill.additionalData.toString(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   // Insert sample data for UI testing
@@ -82,9 +76,11 @@ class DatabaseService {
     final sampleBills = [
       ElectricityBill(
         id: 'sample-1',
+        userId: 'test-user-1',
         imagePath: '/sample/bill1.jpg',
         extractedText: 'Sample electricity bill text 1',
-        summary: 'January 2024 electricity bill showing 450 kWh consumption with a total amount of \$125.50.',
+        summary:
+            'January 2024 electricity bill showing 450 kWh consumption with a total amount of \$125.50.',
         billDate: DateTime(2024, 1, 15),
         totalAmount: 125.50,
         consumptionKwh: 450.0,
@@ -92,15 +88,20 @@ class DatabaseService {
         createdAt: DateTime(2024, 1, 15),
         tags: ['residential', 'monthly'],
         additionalData: {
-          'insights': ['Your usage is within normal range', 'Consistent with previous months'],
+          'insights': [
+            'Your usage is within normal range',
+            'Consistent with previous months',
+          ],
           'recommendations': ['Consider LED bulbs', 'Unplug unused devices'],
         },
       ),
       ElectricityBill(
         id: 'sample-2',
+        userId: 'test-user-1',
         imagePath: '/sample/bill2.jpg',
         extractedText: 'Sample electricity bill text 2',
-        summary: 'February 2024 electricity bill showing 480 kWh consumption with a total amount of \$138.60.',
+        summary:
+            'February 2024 electricity bill showing 480 kWh consumption with a total amount of \$138.60.',
         billDate: DateTime(2024, 2, 15),
         totalAmount: 138.60,
         consumptionKwh: 480.0,
@@ -108,15 +109,23 @@ class DatabaseService {
         createdAt: DateTime(2024, 2, 15),
         tags: ['residential', 'monthly'],
         additionalData: {
-          'insights': ['Usage increased by 6.7%', 'Higher than average for February'],
-          'recommendations': ['Check for air leaks', 'Optimize thermostat settings'],
+          'insights': [
+            'Usage increased by 6.7%',
+            'Higher than average for February',
+          ],
+          'recommendations': [
+            'Check for air leaks',
+            'Optimize thermostat settings',
+          ],
         },
       ),
       ElectricityBill(
         id: 'sample-3',
+        userId: 'test-user-1',
         imagePath: '/sample/bill3.jpg',
         extractedText: 'Sample electricity bill text 3',
-        summary: 'March 2024 electricity bill showing 520 kWh consumption with a total amount of \$149.60.',
+        summary:
+            'March 2024 electricity bill showing 520 kWh consumption with a total amount of \$149.60.',
         billDate: DateTime(2024, 3, 15),
         totalAmount: 149.60,
         consumptionKwh: 520.0,
@@ -124,15 +133,20 @@ class DatabaseService {
         createdAt: DateTime(2024, 3, 15),
         tags: ['residential', 'monthly'],
         additionalData: {
-          'insights': ['Usage increased by 8.3%', 'Spring heating may be contributing'],
+          'insights': [
+            'Usage increased by 8.3%',
+            'Spring heating may be contributing',
+          ],
           'recommendations': ['Consider energy audit', 'Upgrade insulation'],
         },
       ),
       ElectricityBill(
         id: 'sample-4',
+        userId: 'test-user-1',
         imagePath: '/sample/bill4.jpg',
         extractedText: 'Sample electricity bill text 4',
-        summary: 'April 2024 electricity bill showing 380 kWh consumption with a total amount of \$109.60.',
+        summary:
+            'April 2024 electricity bill showing 380 kWh consumption with a total amount of \$109.60.',
         billDate: DateTime(2024, 4, 15),
         totalAmount: 109.60,
         consumptionKwh: 380.0,
@@ -141,14 +155,19 @@ class DatabaseService {
         tags: ['residential', 'monthly'],
         additionalData: {
           'insights': ['Usage decreased by 26.9%', 'Excellent improvement'],
-          'recommendations': ['Maintain current practices', 'Consider solar panels'],
+          'recommendations': [
+            'Maintain current practices',
+            'Consider solar panels',
+          ],
         },
       ),
       ElectricityBill(
         id: 'sample-5',
+        userId: 'test-user-1',
         imagePath: '/sample/bill5.jpg',
         extractedText: 'Sample electricity bill text 5',
-        summary: 'May 2024 electricity bill showing 420 kWh consumption with a total amount of \$121.20.',
+        summary:
+            'May 2024 electricity bill showing 420 kWh consumption with a total amount of \$121.20.',
         billDate: DateTime(2024, 5, 15),
         totalAmount: 121.20,
         consumptionKwh: 420.0,
@@ -171,17 +190,22 @@ class DatabaseService {
     print('📝 Sample data insertion complete');
   }
 
-  // Get all electricity bills
-  static Future<List<ElectricityBill>> getAllBills() async {
+  // Get all electricity bills for a user
+  static Future<List<ElectricityBill>> getAllBills({
+    required String userId,
+  }) async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
       _tableName,
+      where: 'userId = ?',
+      whereArgs: [userId],
       orderBy: 'billDate DESC',
     );
 
     return List.generate(maps.length, (i) {
       return ElectricityBill(
         id: maps[i]['id'],
+        userId: maps[i]['userId'],
         imagePath: maps[i]['imagePath'],
         extractedText: maps[i]['extractedText'],
         summary: maps[i]['summary'],
@@ -209,6 +233,7 @@ class DatabaseService {
 
     return ElectricityBill(
       id: maps[0]['id'],
+      userId: maps[0]['id'],
       imagePath: maps[0]['imagePath'],
       extractedText: maps[0]['extractedText'],
       summary: maps[0]['summary'],
@@ -247,11 +272,7 @@ class DatabaseService {
   // Delete a bill
   static Future<void> deleteBill(String id) async {
     final db = await database;
-    await db.delete(
-      _tableName,
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    await db.delete(_tableName, where: 'id = ?', whereArgs: [id]);
   }
 
   // Get bills by date range
@@ -270,6 +291,7 @@ class DatabaseService {
     return List.generate(maps.length, (i) {
       return ElectricityBill(
         id: maps[i]['id'],
+        userId: maps[i]['id'],
         imagePath: maps[i]['imagePath'],
         extractedText: maps[i]['extractedText'],
         summary: maps[i]['summary'],
@@ -327,4 +349,4 @@ class DatabaseService {
     final db = await database;
     await db.close();
   }
-} 
+}

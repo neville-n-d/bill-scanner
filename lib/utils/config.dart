@@ -1,7 +1,6 @@
 class AppConfig {
   // Feature flags for testing
-  static const bool enableOCR = false; // Set to true when EasyOCR is implemented
-  static const bool enableAI = false; // Set to true when Copilot API is configured
+  static const bool enableAI = true; // Set to true when Azure OpenAI is configured
   static const bool enableSampleData = true; // Set to false in production
   
   // API Configuration

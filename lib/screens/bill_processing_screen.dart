@@ -41,11 +41,7 @@ class _BillProcessingScreenState extends State<BillProcessingScreen> {
       });
 
       setState(() {
-        _currentStep = 'Extracting text with OCR...';
-      });
-
-      setState(() {
-        _currentStep = 'Analyzing with AI...';
+        _currentStep = 'Analyzing bill with AI...';
       });
 
       await billProvider.processBillFromImage(widget.imageFile);

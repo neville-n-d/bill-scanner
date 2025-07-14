@@ -15,7 +15,7 @@ The Electricity Bill Analyzer is a comprehensive Flutter app that helps users tr
 ### 📸 Bill Scanning
 - **Camera Integration**: Take photos of electricity bills
 - **Gallery Import**: Import existing bill images
-- **Real-time Processing**: OCR text extraction and AI analysis
+- **Real-time Processing**: Direct AI analysis using Azure OpenAI Vision
 - **Progress Tracking**: Visual feedback during processing
 
 ### 📊 Analytics Dashboard
@@ -39,20 +39,19 @@ The Electricity Bill Analyzer is a comprehensive Flutter app that helps users tr
 
 ### Architecture
 - **Provider Pattern**: State management using Provider
-- **Service Layer**: Separated business logic (OCR, AI, Database, Camera)
+- **Service Layer**: Separated business logic (AI, Database, Camera)
 - **Local Storage**: SQLite database for secure data storage
 - **Modern UI**: Material Design 3 with custom theming
 
 ### Key Services
-1. **OCRService**: Google ML Kit for text extraction
-2. **AIService**: Copilot API for bill analysis and insights
-3. **DatabaseService**: SQLite for local data persistence
-4. **CameraService**: Camera and image handling
+1. **AIService**: Azure OpenAI Vision for direct image analysis and insights
+2. **DatabaseService**: SQLite for local data persistence
+3. **CameraService**: Camera and image handling
 
 ### Data Flow
 1. User takes photo of electricity bill
-2. Image is saved locally and processed with OCR
-3. Extracted text is sent to AI service for analysis
+2. Image is saved locally and sent directly to Azure OpenAI Vision
+3. AI service analyzes image and extracts all information
 4. Results are stored in local database
 5. UI updates with new insights and recommendations
 
@@ -63,7 +62,7 @@ The Electricity Bill Analyzer is a comprehensive Flutter app that helps users tr
 {
   "id": "unique-uuid",
   "imagePath": "/path/to/image.jpg",
-  "extractedText": "Raw OCR text from bill",
+  "extractedText": "AI-extracted text from bill",
   "summary": "AI-generated summary",
   "billDate": "2024-01-15",
   "totalAmount": 125.50,
@@ -84,7 +83,7 @@ The Electricity Bill Analyzer is a comprehensive Flutter app that helps users tr
 1. Opens app and sees welcome screen
 2. Taps "Scan Your First Bill"
 3. Takes photo of electricity bill
-4. Waits for processing (OCR + AI analysis)
+4. Waits for processing (AI analysis)
 5. Reviews results and insights
 6. Saves bill to history
 
@@ -105,7 +104,7 @@ The Electricity Bill Analyzer is a comprehensive Flutter app that helps users tr
 ## AI Integration Features
 
 ### Bill Analysis
-- **Text Extraction**: OCR processes bill images
+- **Direct Image Analysis**: Azure OpenAI Vision processes bill images directly
 - **Data Extraction**: Identifies key information (amount, consumption, dates)
 - **Summary Generation**: Creates human-readable summaries
 - **Insight Generation**: Provides context and analysis

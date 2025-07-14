@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/bill_provider.dart';
+import '../providers/auth_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -89,6 +90,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 subtitle: 'Delete all bills and settings',
                 trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () => _showClearDataDialog(),
+              ),
+            ],
+          ),
+          _buildSection(
+            'Account',
+            [
+              Consumer<AuthProvider>(
+                builder: (context, authProvider, child) {
+                  final user = authProvider.user;
+                  return _buildListTile(
+                    icon: Icons.person,
+                    title: 'Profile',
+                    subtitle: user?.fullName ?? 'User Profile',
+                    trailing: const Icon(Icons.arrow_forward_ios),
+                    onTap: () => _showProfileDialog(),
+                  );
+                },
+              ),
+              _buildListTile(
+                icon: Icons.logout,
+                title: 'Sign Out',
+                subtitle: 'Sign out of your account',
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () => _showLogoutDialog(),
               ),
             ],
           ),
@@ -299,6 +324,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showProfileDialog() {
+    final user = context.read<AuthProvider>().user;
+    if (user == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Profile'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildProfileItem('Name', user.fullName),
+            _buildProfileItem('Email', user.email),
+            if (user.phone != null) _buildProfileItem('Phone', user.phone!),
+            _buildProfileItem('Account Type', user.userType == 'terahive_ess' ? 'Terahive ESS' : 'Regular'),
+            _buildProfileItem('Terahive ESS', user.hasTerahiveEss ? 'Installed' : 'Not Installed'),
+            _buildProfileItem('Email Verified', user.isEmailVerified ? 'Yes' : 'No'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileItem(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          Expanded(
+            child: Text(value),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign Out'),
+        content: const Text(
+          'Are you sure you want to sign out of your account?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await context.read<AuthProvider>().logout();
+              context.read<BillProvider>().clearBills();
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Sign Out'),
           ),
         ],
       ),

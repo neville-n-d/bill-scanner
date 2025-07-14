@@ -1,5 +1,6 @@
 class ElectricityBill {
   final String id;
+  final String userId;
   final String imagePath;
   final String extractedText;
   final String summary;
@@ -13,6 +14,7 @@ class ElectricityBill {
 
   ElectricityBill({
     required this.id,
+    required this.userId,
     required this.imagePath,
     required this.extractedText,
     required this.summary,
@@ -28,6 +30,7 @@ class ElectricityBill {
   factory ElectricityBill.fromJson(Map<String, dynamic> json) {
     return ElectricityBill(
       id: json['id'],
+      userId: json['userId'],
       imagePath: json['imagePath'],
       extractedText: json['extractedText'],
       summary: json['summary'],
@@ -44,6 +47,7 @@ class ElectricityBill {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'userId': userId,
       'imagePath': imagePath,
       'extractedText': extractedText,
       'summary': summary,
@@ -59,6 +63,7 @@ class ElectricityBill {
 
   ElectricityBill copyWith({
     String? id,
+    String? userId,
     String? imagePath,
     String? extractedText,
     String? summary,
@@ -72,6 +77,7 @@ class ElectricityBill {
   }) {
     return ElectricityBill(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       imagePath: imagePath ?? this.imagePath,
       extractedText: extractedText ?? this.extractedText,
       summary: summary ?? this.summary,
@@ -84,4 +90,4 @@ class ElectricityBill {
       additionalData: additionalData ?? this.additionalData,
     );
   }
-} 
+}
