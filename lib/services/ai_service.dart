@@ -6,15 +6,19 @@ import '../utils/config.dart';
 
 class AIService {
   // Azure OpenAI Configuration
-  static const String _azureEndpoint = "https://nevil-mctuioss-eastus2.openai.azure.com/";
+  static const String _azureEndpoint =
+      "https://nevil-mctuioss-eastus2.openai.azure.com/";
   static const String _deploymentName = "gpt-4.1";
-  static const String _apiKey = "EzBHgcxCWWIdYZb90MF6funaU7P1SOBy6YCidKz35MmKhytHaT0kJQQJ99BGACHYHv6XJ3w3AAAAACOG4H6y";
+  static const String _apiKey =
+      "EzBHgcxCWWIdYZb90MF6funaU7P1SOBy6YCidKz35MmKhytHaT0kJQQJ99BGACHYHv6XJ3w3AAAAACOG4H6y";
   static const String _apiVersion = "2025-01-01-preview";
-  
+
   // API calls controlled by config
   static bool get _apiEnabled => AppConfig.enableAI;
 
-  static Future<Map<String, dynamic>> generateBillSummary(String extractedText) async {
+  static Future<Map<String, dynamic>> generateBillSummary(
+    String extractedText,
+  ) async {
     // Return mock data for UI testing
     if (!_apiEnabled) {
       return _generateMockBillSummary(extractedText);
@@ -22,16 +26,16 @@ class AIService {
 
     try {
       final response = await http.post(
-        Uri.parse('$_azureEndpoint/openai/deployments/$_deploymentName/chat/completions?api-version=$_apiVersion'),
-        headers: {
-          'Content-Type': 'application/json',
-          'api-key': _apiKey,
-        },
+        Uri.parse(
+          '$_azureEndpoint/openai/deployments/$_deploymentName/chat/completions?api-version=$_apiVersion',
+        ),
+        headers: {'Content-Type': 'application/json', 'api-key': _apiKey},
         body: jsonEncode({
           'messages': [
             {
               'role': 'system',
-              'content': '''You are an expert in analyzing electricity bills. Extract key information and provide insights in the following JSON format:
+              'content':
+                  '''You are an expert in analyzing electricity bills. Extract key information and provide insights in the following JSON format:
 {
   "summary": "Brief summary of the bill",
   "billDate": "YYYY-MM-DD",
@@ -40,12 +44,13 @@ class AIService {
   "ratePerKwh": 0.0,
   "insights": ["Array of insights about the bill"],
   "recommendations": ["Array of energy-saving recommendations"]
-}'''
+}''',
             },
             {
               'role': 'user',
-              'content': 'Please analyze this electricity bill text and extract the key information:\n\n$extractedText'
-            }
+              'content':
+                  'Please analyze this electricity bill text and extract the key information:\n\n$extractedText',
+            },
           ],
           'temperature': 0.3,
           'max_tokens': 1000,
@@ -55,7 +60,7 @@ class AIService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final content = data['choices'][0]['message']['content'];
-        
+
         // Try to parse the JSON response
         try {
           return jsonDecode(content);
@@ -68,7 +73,9 @@ class AIService {
             'consumptionKwh': 0.0,
             'ratePerKwh': 0.0,
             'insights': ['Unable to extract specific data'],
-            'recommendations': ['Consider uploading a clearer image for better analysis'],
+            'recommendations': [
+              'Consider uploading a clearer image for better analysis',
+            ],
           };
         }
       } else {
@@ -80,7 +87,9 @@ class AIService {
   }
 
   /// New method for analyzing bill images using Azure OpenAI Vision
-  static Future<Map<String, dynamic>> analyzeBillImage(Uint8List imageBytes) async {
+  static Future<Map<String, dynamic>> analyzeBillImage(
+    Uint8List imageBytes,
+  ) async {
     // Return mock data for UI testing
     if (!_apiEnabled) {
       return _generateMockBillSummary("Image analysis");
@@ -89,13 +98,12 @@ class AIService {
     try {
       // Convert image to base64
       final base64Image = base64Encode(imageBytes);
-      
+
       final response = await http.post(
-        Uri.parse('$_azureEndpoint/openai/deployments/$_deploymentName/chat/completions?api-version=$_apiVersion'),
-        headers: {
-          'Content-Type': 'application/json',
-          'api-key': _apiKey,
-        },
+        Uri.parse(
+          '$_azureEndpoint/openai/deployments/$_deploymentName/chat/completions?api-version=$_apiVersion',
+        ),
+        headers: {'Content-Type': 'application/json', 'api-key': _apiKey},
         body: jsonEncode({
           'messages': [
             {
@@ -103,7 +111,8 @@ class AIService {
               'content': [
                 {
                   'type': 'text',
-                  'text': '''You are an expert in analyzing electricity bills. Extract key information and provide insights in the following JSON format:
+                  'text':
+                      '''You are an expert in analyzing electricity bills. Extract key information and provide insights in the following JSON format:
 {
   "summary": "Brief summary of the bill",
   "billDate": "YYYY-MM-DD",
@@ -112,25 +121,23 @@ class AIService {
   "ratePerKwh": 0.0,
   "insights": ["Array of insights about the bill"],
   "recommendations": ["Array of energy-saving recommendations"]
-}'''
-                }
-              ]
+}''',
+                },
+              ],
             },
             {
               'role': 'user',
               'content': [
                 {
                   'type': 'image_url',
-                  'image_url': {
-                    'url': 'data:image/jpeg;base64,$base64Image'
-                  }
+                  'image_url': {'url': 'data:image/jpeg;base64,$base64Image'},
                 },
                 {
                   'type': 'text',
-                  'text': 'Create a summary of this electricity bill'
-                }
-              ]
-            }
+                  'text': 'Create a summary of this electricity bill',
+                },
+              ],
+            },
           ],
           'max_tokens': 800,
           'temperature': 1,
@@ -143,7 +150,7 @@ class AIService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final content = data['choices'][0]['message']['content'];
-        
+
         // Try to parse the JSON response
         try {
           return jsonDecode(content);
@@ -156,11 +163,15 @@ class AIService {
             'consumptionKwh': 0.0,
             'ratePerKwh': 0.0,
             'insights': ['Unable to extract specific data from image'],
-            'recommendations': ['Consider uploading a clearer image for better analysis'],
+            'recommendations': [
+              'Consider uploading a clearer image for better analysis',
+            ],
           };
         }
       } else {
-        throw Exception('Failed to analyze image: ${response.statusCode} - ${response.body}');
+        throw Exception(
+          'Failed to analyze image: ${response.statusCode} - ${response.body}',
+        );
       }
     } catch (e) {
       throw Exception('Error analyzing bill image: $e');
@@ -168,7 +179,9 @@ class AIService {
   }
 
   /// Method to analyze bill from file path (for PDF conversion support)
-  static Future<Map<String, dynamic>> analyzeBillFromFile(String filePath) async {
+  static Future<Map<String, dynamic>> analyzeBillFromFile(
+    String filePath,
+  ) async {
     try {
       final file = File(filePath);
       if (!await file.exists()) {
@@ -192,21 +205,22 @@ class AIService {
 
     try {
       final response = await http.post(
-        Uri.parse('$_azureEndpoint/openai/deployments/$_deploymentName/chat/completions?api-version=$_apiVersion'),
-        headers: {
-          'Content-Type': 'application/json',
-          'api-key': _apiKey,
-        },
+        Uri.parse(
+          '$_azureEndpoint/openai/deployments/$_deploymentName/chat/completions?api-version=$_apiVersion',
+        ),
+        headers: {'Content-Type': 'application/json', 'api-key': _apiKey},
         body: jsonEncode({
           'messages': [
             {
               'role': 'system',
-              'content': '''You are an energy efficiency expert. Based on the user's electricity bill history, provide personalized recommendations for saving energy and money. Focus on practical, actionable advice that can be implemented immediately.'''
+              'content':
+                  '''You are an energy efficiency expert. Based on the user's electricity bill history, provide personalized recommendations for saving energy and money. Focus on practical, actionable advice that can be implemented immediately.''',
             },
             {
               'role': 'user',
-              'content': 'Based on this electricity bill history, provide 5-7 specific recommendations for saving energy and money:\n\n${jsonEncode(billHistory)}'
-            }
+              'content':
+                  'Based on this electricity bill history, provide 5-7 specific recommendations for saving energy and money:\n\n${jsonEncode(billHistory)}',
+            },
           ],
           'temperature': 0.7,
           'max_tokens': 800,
@@ -216,17 +230,19 @@ class AIService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final content = data['choices'][0]['message']['content'];
-        
+
         // Split the response into individual recommendations
         final recommendations = content
             .split('\n')
             .where((line) => line.trim().isNotEmpty)
             .map((line) => line.replaceAll(RegExp(r'^\d+\.\s*'), '').trim())
             .toList();
-        
+
         return recommendations;
       } else {
-        throw Exception('Failed to generate recommendations: ${response.statusCode}');
+        throw Exception(
+          'Failed to generate recommendations: ${response.statusCode}',
+        );
       }
     } catch (e) {
       throw Exception('Error generating recommendations: $e');
@@ -243,21 +259,22 @@ class AIService {
 
     try {
       final response = await http.post(
-        Uri.parse('$_azureEndpoint/openai/deployments/$_deploymentName/chat/completions?api-version=$_apiVersion'),
-        headers: {
-          'Content-Type': 'application/json',
-          'api-key': _apiKey,
-        },
+        Uri.parse(
+          '$_azureEndpoint/openai/deployments/$_deploymentName/chat/completions?api-version=$_apiVersion',
+        ),
+        headers: {'Content-Type': 'application/json', 'api-key': _apiKey},
         body: jsonEncode({
           'messages': [
             {
               'role': 'system',
-              'content': '''You are an energy analyst. Analyze the consumption patterns from the electricity bill history and provide insights about trends, seasonal variations, and potential anomalies.'''
+              'content':
+                  '''You are an energy analyst. Analyze the consumption patterns from the electricity bill history and provide insights about trends, seasonal variations, and potential anomalies.''',
             },
             {
               'role': 'user',
-              'content': 'Analyze this electricity bill history for consumption patterns:\n\n${jsonEncode(billHistory)}'
-            }
+              'content':
+                  'Analyze this electricity bill history for consumption patterns:\n\n${jsonEncode(billHistory)}',
+            },
           ],
           'temperature': 0.5,
           'max_tokens': 600,
@@ -267,7 +284,7 @@ class AIService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final content = data['choices'][0]['message']['content'];
-        
+
         return {
           'analysis': content,
           'trends': _extractTrends(billHistory),
@@ -284,7 +301,8 @@ class AIService {
   // Mock data generators for UI testing
   static Map<String, dynamic> _generateMockBillSummary(String extractedText) {
     return {
-      'summary': 'This is a mock electricity bill summary for UI testing. The bill shows typical residential consumption patterns with a total amount of \$125.50 for 450 kWh of electricity.',
+      'summary':
+          'This is a mock electricity bill summary for UI testing. The bill shows typical residential consumption patterns with a total amount of \$125.50 for 450 kWh of electricity.',
       'billDate': DateTime.now().toIso8601String().split('T')[0],
       'totalAmount': 125.50,
       'consumptionKwh': 450.0,
@@ -292,12 +310,12 @@ class AIService {
       'insights': [
         'Your electricity consumption is within normal range for residential use',
         'The bill shows consistent usage patterns compared to previous months',
-        'Your rate per kWh is competitive with local utility rates'
+        'Your rate per kWh is competitive with local utility rates',
       ],
       'recommendations': [
         'Consider switching to LED bulbs to reduce lighting costs',
         'Unplug unused devices to eliminate phantom power consumption',
-        'Set your thermostat to 78°F in summer for optimal efficiency'
+        'Set your thermostat to 78°F in summer for optimal efficiency',
       ],
     };
   }
@@ -310,13 +328,16 @@ class AIService {
       'Use ceiling fans to circulate air and reduce AC usage',
       'Consider installing a programmable thermostat',
       'Wash clothes in cold water to save on water heating costs',
-      'Seal air leaks around windows and doors to improve efficiency'
+      'Seal air leaks around windows and doors to improve efficiency',
     ];
   }
 
-  static Map<String, dynamic> _generateMockAnalysis(List<Map<String, dynamic>> billHistory) {
+  static Map<String, dynamic> _generateMockAnalysis(
+    List<Map<String, dynamic>> billHistory,
+  ) {
     return {
-      'analysis': 'Based on your bill history, your electricity consumption shows a slight upward trend. Summer months typically show higher usage due to air conditioning. Consider implementing energy-saving measures to reduce costs.',
+      'analysis':
+          'Based on your bill history, your electricity consumption shows a slight upward trend. Summer months typically show higher usage due to air conditioning. Consider implementing energy-saving measures to reduce costs.',
       'trends': {
         'overallChange': 25.0,
         'percentageChange': 5.2,
@@ -324,24 +345,42 @@ class AIService {
         'averageConsumption': 425.0,
       },
       'seasonalPatterns': {
-        'monthlyAverages': {1: 380.0, 2: 390.0, 3: 400.0, 4: 420.0, 5: 450.0, 6: 480.0, 7: 500.0, 8: 490.0, 9: 460.0, 10: 430.0, 11: 410.0, 12: 395.0},
+        'monthlyAverages': {
+          1: 380.0,
+          2: 390.0,
+          3: 400.0,
+          4: 420.0,
+          5: 450.0,
+          6: 480.0,
+          7: 500.0,
+          8: 490.0,
+          9: 460.0,
+          10: 430.0,
+          11: 410.0,
+          12: 395.0,
+        },
         'highestMonth': 7,
         'lowestMonth': 1,
       },
     };
   }
 
-  static Map<String, dynamic> _extractTrends(List<Map<String, dynamic>> billHistory) {
+  static Map<String, dynamic> _extractTrends(
+    List<Map<String, dynamic>> billHistory,
+  ) {
     if (billHistory.isEmpty) return {};
-    
+
     // Simple trend analysis
-    final sortedBills = billHistory
-        .map((bill) => MapEntry(
-              DateTime.parse(bill['billDate']),
-              bill['consumptionKwh'] as double,
-            ))
-        .toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
+    final sortedBills =
+        billHistory
+            .map(
+              (bill) => MapEntry(
+                DateTime.parse(bill['billDate']),
+                bill['consumptionKwh'] as double,
+              ),
+            )
+            .toList()
+          ..sort((a, b) => a.key.compareTo(b.key));
 
     if (sortedBills.length < 2) return {};
 
@@ -353,33 +392,48 @@ class AIService {
     return {
       'overallChange': change,
       'percentageChange': percentageChange,
-      'trend': change > 0 ? 'increasing' : change < 0 ? 'decreasing' : 'stable',
-      'averageConsumption': sortedBills.map((e) => e.value).reduce((a, b) => a + b) / sortedBills.length,
+      'trend': change > 0
+          ? 'increasing'
+          : change < 0
+          ? 'decreasing'
+          : 'stable',
+      'averageConsumption':
+          sortedBills.map((e) => e.value).reduce((a, b) => a + b) /
+          sortedBills.length,
     };
   }
 
-  static Map<String, dynamic> _identifySeasonalPatterns(List<Map<String, dynamic>> billHistory) {
+  static Map<String, dynamic> _identifySeasonalPatterns(
+    List<Map<String, dynamic>> billHistory,
+  ) {
     if (billHistory.isEmpty) return {};
-    
+
     // Group by month to identify seasonal patterns
     final monthlyAverages = <int, List<double>>{};
-    
+
     for (final bill in billHistory) {
       final date = DateTime.parse(bill['billDate']);
       final month = date.month;
       final consumption = bill['consumptionKwh'] as double;
-      
+
       monthlyAverages.putIfAbsent(month, () => []).add(consumption);
     }
-    
+
     final seasonalData = monthlyAverages.map((month, consumptions) {
-      return MapEntry(month, consumptions.reduce((a, b) => a + b) / consumptions.length);
+      return MapEntry(
+        month,
+        consumptions.reduce((a, b) => a + b) / consumptions.length,
+      );
     });
-    
+
     return {
       'monthlyAverages': seasonalData,
-      'highestMonth': seasonalData.entries.reduce((a, b) => a.value > b.value ? a : b).key,
-      'lowestMonth': seasonalData.entries.reduce((a, b) => a.value < b.value ? a : b).key,
+      'highestMonth': seasonalData.entries
+          .reduce((a, b) => a.value > b.value ? a : b)
+          .key,
+      'lowestMonth': seasonalData.entries
+          .reduce((a, b) => a.value < b.value ? a : b)
+          .key,
     };
   }
-} 
+}

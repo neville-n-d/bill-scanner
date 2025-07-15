@@ -3,11 +3,13 @@ import 'package:provider/provider.dart';
 import 'providers/bill_provider.dart';
 import 'providers/auth_provider.dart';
 import 'screens/home_screen.dart';
-import 'screens/camera_screen.dart';
+import 'screens/bill_detail_screen.dart';
 import 'screens/history_screen.dart';
-import 'screens/analytics_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/camera_screen.dart';
+import 'widgets/custom_bottom_nav_bar.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() {
   runApp(const ElectricityBillApp());
@@ -49,14 +51,15 @@ class ElectricityBillApp extends StatelessWidget {
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(48),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
             ),
           ),
         ),
         home: const AuthWrapper(),
         debugShowCheckedModeBanner: false,
+        routes: {'/camera': (context) => const CameraScreen()},
       ),
     );
   }
@@ -85,9 +88,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
       builder: (context, authProvider, child) {
         if (authProvider.isLoading) {
           return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
+            body: Center(child: CircularProgressIndicator()),
           );
         }
 
@@ -111,29 +112,18 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const HistoryScreen(),
-    const AnalyticsScreen(),
-    const SettingsScreen(),
-  ];
+  final List<Widget> _screens = [const HomeScreen(), const HistoryScreen()];
 
   @override
   void initState() {
     super.initState();
-    // Initialize the provider and fetch bills after authentication
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final billProvider = context.read<BillProvider>();
       final authProvider = context.read<AuthProvider>();
-      
-      // Set up auth state change callback
       authProvider.setAuthStateCallback((isLoggedIn) {
         billProvider.onAuthStateChanged(isLoggedIn);
       });
-      
       await billProvider.initialize();
-      
-      // If user is authenticated, fetch bills from backend
       if (authProvider.isLoggedIn) {
         await billProvider.loadBills();
       }
@@ -144,49 +134,42 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _screens[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        selectedItemColor: Theme.of(context).primaryColor,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'History',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.analytics),
-            label: 'Analytics',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
+      floatingActionButton: SizedBox(
+        width: 72,
+        height: 72,
+        child: FloatingActionButton(
+          onPressed: () {
+            Permission.camera.request();
+            Navigator.pushNamed(context, '/camera');
+          },
+          backgroundColor: Theme.of(context).primaryColor,
+          child: const Icon(Icons.camera_alt, size: 30),
+          shape: const CircleBorder(),
+          elevation: 2,
+        ),
       ),
-      floatingActionButton: _currentIndex == 0
-          ? FloatingActionButton.extended(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CameraScreen(),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.camera_alt),
-              label: const Text('Scan Bill'),
-            )
-          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: SizedBox(
+        height: 105,
+        child: FABBottomAppBar(
+          items: [
+            FABBottomAppBarItem(iconData: Icons.home, text: 'Home'),
+            FABBottomAppBarItem(iconData: Icons.history, text: 'History'),
+          ],
+          height: 105,
+          iconSize: 30,
+          backgroundColor: Colors.white,
+          color: Colors.grey,
+          selectedColor: Theme.of(context).primaryColor,
+          notchedShape: const CircularNotchedRectangle(),
+          onTabSelected: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+          selectedIndex: _currentIndex,
+        ),
+      ),
     );
   }
 }

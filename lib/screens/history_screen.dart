@@ -16,7 +16,12 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   String _searchQuery = '';
   String _selectedFilter = 'All';
-  final List<String> _filterOptions = ['All', 'This Month', 'Last Month', 'This Year'];
+  final List<String> _filterOptions = [
+    'All',
+    'This Month',
+    'Last Month',
+    'This Year',
+  ];
   bool _isSelectionMode = false;
   Set<String> _selectedBills = {};
 
@@ -24,25 +29,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: _isSelectionMode 
-          ? Text('${_selectedBills.length} selected')
-          : const Text('Bill History'),
+        title: _isSelectionMode
+            ? Text('${_selectedBills.length} selected')
+            : const Text('Bill History', style: TextStyle(color: Colors.black)),
         leading: _isSelectionMode
-          ? IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () {
-                setState(() {
-                  _isSelectionMode = false;
-                  _selectedBills.clear();
-                });
-              },
-            )
-          : null,
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () {
+                  setState(() {
+                    _isSelectionMode = false;
+                    _selectedBills.clear();
+                  });
+                },
+              )
+            : null,
         actions: [
           if (_isSelectionMode) ...[
             IconButton(
               icon: const Icon(Icons.delete),
-              onPressed: _selectedBills.isNotEmpty ? _deleteSelectedBills : null,
+              onPressed: _selectedBills.isNotEmpty
+                  ? _deleteSelectedBills
+                  : null,
             ),
           ] else ...[
             IconButton(
@@ -66,10 +73,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 });
               },
               itemBuilder: (context) => _filterOptions.map((option) {
-                return PopupMenuItem(
-                  value: option,
-                  child: Text(option),
-                );
+                return PopupMenuItem(value: option, child: Text(option));
               }).toList(),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -88,9 +92,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: Consumer<BillProvider>(
         builder: (context, billProvider, child) {
           if (billProvider.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           final filteredBills = _getFilteredBills(billProvider.bills);
@@ -112,9 +114,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Dismissible(
                     key: Key(bill.id),
-                    direction: DismissDirection.endToStart, // Swipe left to delete
+                    direction:
+                        DismissDirection.endToStart, // Swipe left to delete
                     background: _buildDeleteBackground(),
-                    confirmDismiss: (direction) => _showDeleteConfirmation(context, bill),
+                    confirmDismiss: (direction) =>
+                        _showDeleteConfirmation(context, bill),
                     onDismissed: (direction) {
                       _deleteBill(context, bill);
                     },
@@ -126,25 +130,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => BillDetailScreen(bill: bill),
+                              builder: (context) =>
+                                  BillDetailScreen(bill: bill),
                             ),
                           );
                         }
                       },
-                      onSelectionChanged: _isSelectionMode ? () {
-                        setState(() {
-                          if (_selectedBills.contains(bill.id)) {
-                            _selectedBills.remove(bill.id);
-                          } else {
-                            _selectedBills.add(bill.id);
-                          }
-                        });
-                      } : null,
-                      onDelete: _isSelectionMode ? null : () => _showDeleteConfirmation(context, bill).then((confirmed) {
-                        if (confirmed == true) {
-                          _deleteBill(context, bill);
-                        }
-                      }),
+                      onSelectionChanged: _isSelectionMode
+                          ? () {
+                              setState(() {
+                                if (_selectedBills.contains(bill.id)) {
+                                  _selectedBills.remove(bill.id);
+                                } else {
+                                  _selectedBills.add(bill.id);
+                                }
+                              });
+                            }
+                          : null,
+                      onDelete: _isSelectionMode
+                          ? null
+                          : () => _showDeleteConfirmation(context, bill).then((
+                              confirmed,
+                            ) {
+                              if (confirmed == true) {
+                                _deleteBill(context, bill);
+                              }
+                            }),
                     ),
                   ),
                 );
@@ -164,8 +175,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
       filteredBills = filteredBills.where((bill) {
         final query = _searchQuery.toLowerCase();
         return bill.summary.toLowerCase().contains(query) ||
-               bill.extractedText.toLowerCase().contains(query) ||
-               DateFormat('MMM dd, yyyy').format(bill.billDate).toLowerCase().contains(query);
+            bill.extractedText.toLowerCase().contains(query) ||
+            DateFormat(
+              'MMM dd, yyyy',
+            ).format(bill.billDate).toLowerCase().contains(query);
       }).toList();
     }
 
@@ -174,13 +187,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
     switch (_selectedFilter) {
       case 'This Month':
         filteredBills = filteredBills.where((bill) {
-          return bill.billDate.year == now.year && bill.billDate.month == now.month;
+          return bill.billDate.year == now.year &&
+              bill.billDate.month == now.month;
         }).toList();
         break;
       case 'Last Month':
         final lastMonth = DateTime(now.year, now.month - 1);
         filteredBills = filteredBills.where((bill) {
-          return bill.billDate.year == lastMonth.year && bill.billDate.month == lastMonth.month;
+          return bill.billDate.year == lastMonth.year &&
+              bill.billDate.month == lastMonth.month;
         }).toList();
         break;
       case 'This Year':
@@ -200,17 +215,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.history,
-              size: 64,
-              color: Colors.grey,
-            ),
+            const Icon(Icons.history, size: 64, color: Colors.grey),
             const SizedBox(height: 16),
             Text(
               'No Bills Found',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
@@ -218,9 +229,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ? 'No bills match your search criteria'
                   : 'Start by scanning your first electricity bill',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.grey[600],
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
             ),
             const SizedBox(height: 24),
             if (_searchQuery.isEmpty)
@@ -252,11 +263,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Icon(
-                Icons.delete,
-                color: Colors.white,
-                size: 24,
-              ),
+              Icon(Icons.delete, color: Colors.white, size: 24),
               SizedBox(width: 8),
               Text(
                 'Delete',
@@ -273,7 +280,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Future<bool?> _showDeleteConfirmation(BuildContext context, ElectricityBill bill) {
+  Future<bool?> _showDeleteConfirmation(
+    BuildContext context,
+    ElectricityBill bill,
+  ) {
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -300,11 +310,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     try {
       final billProvider = context.read<BillProvider>();
       await billProvider.deleteBill(bill.id);
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Bill from ${DateFormat('MMM dd, yyyy').format(bill.billDate)} deleted successfully'),
+            content: Text(
+              'Bill from ${DateFormat('MMM dd, yyyy').format(bill.billDate)} deleted successfully',
+            ),
             backgroundColor: Colors.green,
             action: SnackBarAction(
               label: 'Undo',
@@ -360,21 +372,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
       try {
         final billProvider = context.read<BillProvider>();
         final filteredBills = _getFilteredBills(billProvider.bills);
-        final billsToDelete = filteredBills.where((bill) => _selectedBills.contains(bill.id)).toList();
-        
+        final billsToDelete = filteredBills
+            .where((bill) => _selectedBills.contains(bill.id))
+            .toList();
+
         for (final bill in billsToDelete) {
           await billProvider.deleteBill(bill.id);
         }
-        
+
         if (mounted) {
           setState(() {
             _isSelectionMode = false;
             _selectedBills.clear();
           });
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${billsToDelete.length} bill${billsToDelete.length == 1 ? '' : 's'} deleted successfully'),
+              content: Text(
+                '${billsToDelete.length} bill${billsToDelete.length == 1 ? '' : 's'} deleted successfully',
+              ),
               backgroundColor: Colors.green,
             ),
           );
@@ -427,4 +443,4 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
     );
   }
-} 
+}
