@@ -168,6 +168,31 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // Update TeraHive ESS installation status
+  Future<bool> updateHasTerahiveEss(bool value) async {
+    if (_user == null) return false;
+    _setLoading(true);
+    try {
+      // Call backend to update user profile
+      final result = await _authService.updateTerahiveEssStatus(value);
+      if (result['success']) {
+        _user = result['user'];
+        notifyListeners();
+        return true;
+      } else {
+        _error = result['message'];
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _error = 'Failed to update TeraHive status: $e';
+      notifyListeners();
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   // Clear error
   void clearError() {
     _error = null;

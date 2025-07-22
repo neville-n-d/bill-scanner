@@ -10,6 +10,7 @@ import '../utils/config.dart';
 import '../screens/settings_screen.dart'; // Added import for SettingsScreen
 import '../widgets/usage_analysis_chart.dart';
 import '../widgets/ess_savings_simulation.dart';
+import '../providers/auth_provider.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -178,19 +179,163 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildAnalyzeGraph(BuildContext context, BillProvider billProvider) {
+    final hasTerahiveEss =
+        Provider.of<AuthProvider>(
+          context,
+          listen: false,
+        ).user?.hasTerahiveEss ??
+        false;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Usage Analysis',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
         UsageAnalysisChart(bills: billProvider.bills),
-        EssSavingsSimulation(bills: billProvider.bills),
+        _buildGenerateSuggestionsSection(context, billProvider),
+        const SizedBox(height: 24),
+        EssSavingsSimulation(
+          bills: billProvider.bills,
+          hasTerahiveEss: hasTerahiveEss,
+        ),
       ],
+    );
+  }
+
+  Widget _buildGenerateSuggestionsSection(
+    BuildContext context,
+    BillProvider billProvider,
+  ) {
+    final canGenerate =
+        billProvider.bills.length >= 3 &&
+        !billProvider.isGeneratingSuggestions &&
+        (billProvider.suggestions == null ||
+            (billProvider.lastSuggestionGenerated != null &&
+                billProvider.lastSuggestionGenerated!.isBefore(
+                  billProvider.bills.first.createdAt,
+                )));
+
+    return Card(
+      margin: const EdgeInsets.only(top: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Generate Suggestions',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Get personalized tips to save more money based on your 3 most recent bills.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            if (billProvider.error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  billProvider.error!,
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
+            if (billProvider.isGeneratingSuggestions)
+              const Center(child: CircularProgressIndicator()),
+            if (!billProvider.isGeneratingSuggestions &&
+                (billProvider.suggestions == null || canGenerate))
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: canGenerate
+                      ? () async {
+                          await billProvider.generatePersonalizedSuggestions();
+                        }
+                      : null,
+                  icon: const Icon(Icons.lightbulb),
+                  label: const Text('Generate Suggestions'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            if (billProvider.suggestions != null &&
+                !billProvider.isGeneratingSuggestions)
+              _buildSuggestionsResult(context, billProvider.suggestions!),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuggestionsResult(
+    BuildContext context,
+    Map<String, dynamic> suggestions,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        Text(
+          'Summary:',
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        Text(suggestions['summary'] ?? ''),
+        const SizedBox(height: 12),
+        if (suggestions['immediateActions'] != null)
+          _buildSuggestionList(
+            'Immediate Actions',
+            suggestions['immediateActions'],
+          ),
+        if (suggestions['mediumTerm'] != null)
+          _buildSuggestionList('Medium Term', suggestions['mediumTerm']),
+        if (suggestions['longTerm'] != null)
+          _buildSuggestionList('Long Term', suggestions['longTerm']),
+        if (suggestions['potentialSavings'] != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              'Potential Savings: ${suggestions['potentialSavings']}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        if (suggestions['terahiveRecommendations'] != null)
+          _buildSuggestionList(
+            'TeraHive Recommendations',
+            suggestions['terahiveRecommendations'],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSuggestionList(String title, dynamic items) {
+    if (items is! List) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+          ...items.map<Widget>(
+            (item) => Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('• ', style: TextStyle(fontSize: 16)),
+                Expanded(child: Text(item.toString())),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

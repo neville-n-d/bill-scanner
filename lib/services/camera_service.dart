@@ -93,6 +93,23 @@ class CameraService {
     }
   }
 
+  // Pick multiple images from gallery
+  static Future<List<File>> pickMultipleImagesFromGallery() async {
+    try {
+      final List<XFile>? images = await _picker.pickMultiImage(
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+      if (images != null && images.isNotEmpty) {
+        return images.map((x) => File(x.path)).toList();
+      }
+      return [];
+    } catch (e) {
+      throw Exception('Failed to pick images from gallery: $e');
+    }
+  }
+
   // Save image to app directory
   static Future<String> saveImageToAppDirectory(File imageFile) async {
     try {
@@ -143,6 +160,20 @@ class CameraService {
 
   // Request camera permission
   static Future<bool> requestCameraPermission() async {
+    // First check current status
+    final currentStatus = await Permission.camera.status;
+    
+    // If already granted, return true
+    if (currentStatus == PermissionStatus.granted) {
+      return true;
+    }
+    
+    // If permanently denied, return false
+    if (currentStatus == PermissionStatus.permanentlyDenied) {
+      return false;
+    }
+    
+    // Request permission - this will show the iOS permission dialog
     final status = await Permission.camera.request();
     return status == PermissionStatus.granted;
   }

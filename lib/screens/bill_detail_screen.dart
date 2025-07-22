@@ -74,8 +74,6 @@ class BillDetailScreen extends StatelessWidget {
             _buildBillDetails(),
             const SizedBox(height: 24),
             _buildInsights(),
-            const SizedBox(height: 24),
-            _buildRecommendations(),
           ],
         ),
       ),
@@ -199,70 +197,43 @@ class BillDetailScreen extends StatelessWidget {
   }
 
   Widget _buildInsights() {
-    final insights = bill.additionalData['insights'] as List<dynamic>? ?? [];
-    
-    if (insights.isEmpty) {
+    if (bill.insights.isEmpty) {
       return const SizedBox.shrink();
     }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.lightbulb, color: Colors.orange),
-            const SizedBox(width: 8),
-            Text(
-              'Insights',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                const Icon(Icons.insights, color: Colors.deepPurple),
+                const SizedBox(width: 8),
+                Text(
+                  'Insights',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
+            const SizedBox(height: 12),
+            ...bill.insights.map((insight) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    insight,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[700],
+                      height: 1.5,
+                    ),
+                  ),
+                )),
           ],
         ),
-        const SizedBox(height: 16),
-        ...insights.map((insight) => InsightCard(
-          title: 'Insight',
-          content: insight.toString(),
-          icon: Icons.lightbulb_outline,
-          color: Colors.orange,
-        )),
-      ],
-    );
-  }
-
-  Widget _buildRecommendations() {
-    final recommendations = bill.additionalData['recommendations'] as List<dynamic>? ?? [];
-    
-    if (recommendations.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.trending_up, color: Colors.green),
-            const SizedBox(width: 8),
-            Text(
-              'Recommendations',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        ...recommendations.map((recommendation) => InsightCard(
-          title: 'Recommendation',
-          content: recommendation.toString(),
-          icon: Icons.trending_up,
-          color: Colors.green,
-        )),
-      ],
+      ),
     );
   }
 

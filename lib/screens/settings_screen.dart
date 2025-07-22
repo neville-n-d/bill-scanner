@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/bill_provider.dart';
 import '../providers/auth_provider.dart';
+import '../main.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -15,6 +16,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _darkModeEnabled = false;
   String _currency = 'USD';
   String _energyUnit = 'kWh';
+
+  // For TeraHive status change
+  bool? _pendingTerahiveStatus;
+  bool _savingTerahiveStatus = false;
 
   @override
   Widget build(BuildContext context) {
@@ -99,12 +104,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Consumer<AuthProvider>(
                 builder: (context, authProvider, child) {
                   final user = authProvider.user;
-                  return _buildListTile(
-                    icon: Icons.person,
-                    title: 'Profile',
-                    subtitle: user?.fullName ?? 'User Profile',
-                    trailing: const Icon(Icons.arrow_forward_ios),
-                    onTap: () => _showProfileDialog(),
+                  return Column(
+                    children: [
+                      _buildListTile(
+                        icon: Icons.person,
+                        title: 'Profile',
+                        subtitle: user?.fullName ?? 'User Profile',
+                        trailing: const Icon(Icons.arrow_forward_ios),
+                        onTap: () => _showProfileDialog(),
+                      ),
+                      // TeraHive status selection removed
+                    ],
                   );
                 },
               ),
@@ -399,6 +409,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.pop(context);
               await context.read<AuthProvider>().logout();
               context.read<BillProvider>().clearBills();
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const AuthWrapper()),
+                (route) => false,
+              );
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Sign Out'),

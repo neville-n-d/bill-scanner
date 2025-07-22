@@ -4,6 +4,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:path/path.dart';
 import '../models/electricity_bill.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:convert';
 
 class DatabaseService {
   static Database? _database;
@@ -66,7 +67,7 @@ class DatabaseService {
       'ratePerKwh': bill.ratePerKwh,
       'createdAt': bill.createdAt.toIso8601String(),
       'tags': bill.tags.join(','),
-      'additionalData': bill.additionalData.toString(),
+      'additionalData': jsonEncode(bill.additionalData),
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
@@ -74,111 +75,111 @@ class DatabaseService {
   static Future<void> insertSampleData() async {
     print('📝 Starting sample data insertion...');
     final sampleBills = [
-      ElectricityBill(
-        id: 'sample-1',
-        userId: 'test-user-1',
-        imagePath: '/sample/bill1.jpg',
-        extractedText: 'Sample electricity bill text 1',
-        summary:
-            'January 2024 electricity bill showing 450 kWh consumption with a total amount of \$125.50.',
-        billDate: DateTime(2024, 1, 15),
-        totalAmount: 125.50,
-        consumptionKwh: 450.0,
-        ratePerKwh: 0.12,
-        createdAt: DateTime(2024, 1, 15),
-        tags: ['residential', 'monthly'],
-        additionalData: {
-          'insights': [
-            'Your usage is within normal range',
-            'Consistent with previous months',
-          ],
-          'recommendations': ['Consider LED bulbs', 'Unplug unused devices'],
-        },
-      ),
-      ElectricityBill(
-        id: 'sample-2',
-        userId: 'test-user-1',
-        imagePath: '/sample/bill2.jpg',
-        extractedText: 'Sample electricity bill text 2',
-        summary:
-            'February 2024 electricity bill showing 480 kWh consumption with a total amount of \$138.60.',
-        billDate: DateTime(2024, 2, 15),
-        totalAmount: 138.60,
-        consumptionKwh: 480.0,
-        ratePerKwh: 0.12,
-        createdAt: DateTime(2024, 2, 15),
-        tags: ['residential', 'monthly'],
-        additionalData: {
-          'insights': [
-            'Usage increased by 6.7%',
-            'Higher than average for February',
-          ],
-          'recommendations': [
-            'Check for air leaks',
-            'Optimize thermostat settings',
-          ],
-        },
-      ),
-      ElectricityBill(
-        id: 'sample-3',
-        userId: 'test-user-1',
-        imagePath: '/sample/bill3.jpg',
-        extractedText: 'Sample electricity bill text 3',
-        summary:
-            'March 2024 electricity bill showing 520 kWh consumption with a total amount of \$149.60.',
-        billDate: DateTime(2024, 3, 15),
-        totalAmount: 149.60,
-        consumptionKwh: 520.0,
-        ratePerKwh: 0.12,
-        createdAt: DateTime(2024, 3, 15),
-        tags: ['residential', 'monthly'],
-        additionalData: {
-          'insights': [
-            'Usage increased by 8.3%',
-            'Spring heating may be contributing',
-          ],
-          'recommendations': ['Consider energy audit', 'Upgrade insulation'],
-        },
-      ),
-      ElectricityBill(
-        id: 'sample-4',
-        userId: 'test-user-1',
-        imagePath: '/sample/bill4.jpg',
-        extractedText: 'Sample electricity bill text 4',
-        summary:
-            'April 2024 electricity bill showing 380 kWh consumption with a total amount of \$109.60.',
-        billDate: DateTime(2024, 4, 15),
-        totalAmount: 109.60,
-        consumptionKwh: 380.0,
-        ratePerKwh: 0.12,
-        createdAt: DateTime(2024, 4, 15),
-        tags: ['residential', 'monthly'],
-        additionalData: {
-          'insights': ['Usage decreased by 26.9%', 'Excellent improvement'],
-          'recommendations': [
-            'Maintain current practices',
-            'Consider solar panels',
-          ],
-        },
-      ),
-      ElectricityBill(
-        id: 'sample-5',
-        userId: 'test-user-1',
-        imagePath: '/sample/bill5.jpg',
-        extractedText: 'Sample electricity bill text 5',
-        summary:
-            'May 2024 electricity bill showing 420 kWh consumption with a total amount of \$121.20.',
-        billDate: DateTime(2024, 5, 15),
-        totalAmount: 121.20,
-        consumptionKwh: 420.0,
-        ratePerKwh: 0.12,
-        createdAt: DateTime(2024, 5, 15),
-        tags: ['residential', 'monthly'],
-        additionalData: {
-          'insights': ['Usage increased by 10.5%', 'AC usage starting'],
-          'recommendations': ['Use ceiling fans', 'Set thermostat to 78°F'],
-        },
-      ),
+      // ElectricityBill(
+      //   id: 'sample-1',
+      //   userId: 'test-user-1',
+      //   imagePath: '/sample/bill1.jpg',
+      //   extractedText: 'Sample electricity bill text 1',
+      //   summary:
+      //       'January 2024 electricity bill showing 450 kWh consumption with a total amount of \$125.50.',
+      //   billDate: DateTime(2024, 1, 15),
+      //   totalAmount: 125.50,
+      //   consumptionKwh: 450.0,
+      //   ratePerKwh: 0.12,
+      //   createdAt: DateTime(2024, 1, 15),
+      //   tags: ['residential', 'monthly'],
+      //   additionalData: {
+      //     'insights': [
+      //       'Your usage is within normal range',
+      //       'Consistent with previous months',
+      //     ],
+      //     'recommendations': ['Consider LED bulbs', 'Unplug unused devices'],
+      //   },
+      // ),
+      // ElectricityBill(
+      //   id: 'sample-2',
+      //   userId: 'test-user-1',
+      //   imagePath: '/sample/bill2.jpg',
+      //   extractedText: 'Sample electricity bill text 2',
+      //   summary:
+      //       'February 2024 electricity bill showing 480 kWh consumption with a total amount of \$138.60.',
+      //   billDate: DateTime(2024, 2, 15),
+      //   totalAmount: 138.60,
+      //   consumptionKwh: 480.0,
+      //   ratePerKwh: 0.12,
+      //   createdAt: DateTime(2024, 2, 15),
+      //   tags: ['residential', 'monthly'],
+      //   additionalData: {
+      //     'insights': [
+      //       'Usage increased by 6.7%',
+      //       'Higher than average for February',
+      //     ],
+      //     'recommendations': [
+      //       'Check for air leaks',
+      //       'Optimize thermostat settings',
+      //     ],
+      //   },
+      // ),
+      // ElectricityBill(
+      //   id: 'sample-3',
+      //   userId: 'test-user-1',
+      //   imagePath: '/sample/bill3.jpg',
+      //   extractedText: 'Sample electricity bill text 3',
+      //   summary:
+      //       'March 2024 electricity bill showing 520 kWh consumption with a total amount of \$149.60.',
+      //   billDate: DateTime(2024, 3, 15),
+      //   totalAmount: 149.60,
+      //   consumptionKwh: 520.0,
+      //   ratePerKwh: 0.12,
+      //   createdAt: DateTime(2024, 3, 15),
+      //   tags: ['residential', 'monthly'],
+      //   additionalData: {
+      //     'insights': [
+      //       'Usage increased by 8.3%',
+      //       'Spring heating may be contributing',
+      //     ],
+      //     'recommendations': ['Consider energy audit', 'Upgrade insulation'],
+      //   },
+      // ),
+      // ElectricityBill(
+      //   id: 'sample-4',
+      //   userId: 'test-user-1',
+      //   imagePath: '/sample/bill4.jpg',
+      //   extractedText: 'Sample electricity bill text 4',
+      //   summary:
+      //       'April 2024 electricity bill showing 380 kWh consumption with a total amount of \$109.60.',
+      //   billDate: DateTime(2024, 4, 15),
+      //   totalAmount: 109.60,
+      //   consumptionKwh: 380.0,
+      //   ratePerKwh: 0.12,
+      //   createdAt: DateTime(2024, 4, 15),
+      //   tags: ['residential', 'monthly'],
+      //   additionalData: {
+      //     'insights': ['Usage decreased by 26.9%', 'Excellent improvement'],
+      //     'recommendations': [
+      //       'Maintain current practices',
+      //       'Consider solar panels',
+      //     ],
+      //   },
+      // ),
+      // ElectricityBill(
+      //   id: 'sample-5',
+      //   userId: 'test-user-1',
+      //   imagePath: '/sample/bill5.jpg',
+      //   extractedText: 'Sample electricity bill text 5',
+      //   summary:
+      //       'May 2024 electricity bill showing 420 kWh consumption with a total amount of \$121.20.',
+      //   billDate: DateTime(2024, 5, 15),
+      //   totalAmount: 121.20,
+      //   consumptionKwh: 420.0,
+      //   ratePerKwh: 0.12,
+      //   createdAt: DateTime(2024, 5, 15),
+      //   tags: ['residential', 'monthly'],
+      //   additionalData: {
+      //     'insights': ['Usage increased by 10.5%', 'AC usage starting'],
+      //     'recommendations': ['Use ceiling fans', 'Set thermostat to 78°F'],
+      //   },
+      // ),
     ];
 
     print('📝 Inserting ${sampleBills.length} sample bills...');
@@ -203,6 +204,9 @@ class DatabaseService {
     );
 
     return List.generate(maps.length, (i) {
+      final additionalData = maps[i]['additionalData'] != null
+          ? jsonDecode(maps[i]['additionalData']) as Map<String, dynamic>
+          : <String, dynamic>{};
       return ElectricityBill(
         id: maps[i]['id'],
         userId: maps[i]['userId'],
@@ -213,9 +217,10 @@ class DatabaseService {
         totalAmount: maps[i]['totalAmount'],
         consumptionKwh: maps[i]['consumptionKwh'],
         ratePerKwh: maps[i]['ratePerKwh'],
+        insights: List<String>.from(additionalData['insights'] ?? []),
         createdAt: DateTime.parse(maps[i]['createdAt']),
         tags: maps[i]['tags']?.split(',') ?? [],
-        additionalData: {}, // Parse additionalData if needed
+        additionalData: additionalData,
       );
     });
   }
@@ -231,9 +236,12 @@ class DatabaseService {
 
     if (maps.isEmpty) return null;
 
+    final additionalData = maps[0]['additionalData'] != null
+        ? jsonDecode(maps[0]['additionalData']) as Map<String, dynamic>
+        : <String, dynamic>{};
     return ElectricityBill(
       id: maps[0]['id'],
-      userId: maps[0]['id'],
+      userId: maps[0]['userId'],
       imagePath: maps[0]['imagePath'],
       extractedText: maps[0]['extractedText'],
       summary: maps[0]['summary'],
@@ -241,9 +249,10 @@ class DatabaseService {
       totalAmount: maps[0]['totalAmount'],
       consumptionKwh: maps[0]['consumptionKwh'],
       ratePerKwh: maps[0]['ratePerKwh'],
+      insights: List<String>.from(additionalData['insights'] ?? []),
       createdAt: DateTime.parse(maps[0]['createdAt']),
       tags: maps[0]['tags']?.split(',') ?? [],
-      additionalData: {}, // Parse additionalData if needed
+      additionalData: additionalData,
     );
   }
 
@@ -262,7 +271,7 @@ class DatabaseService {
         'ratePerKwh': bill.ratePerKwh,
         'createdAt': bill.createdAt.toIso8601String(),
         'tags': bill.tags.join(','),
-        'additionalData': bill.additionalData.toString(),
+        'additionalData': jsonEncode(bill.additionalData),
       },
       where: 'id = ?',
       whereArgs: [bill.id],
@@ -289,9 +298,12 @@ class DatabaseService {
     );
 
     return List.generate(maps.length, (i) {
+      final additionalData = maps[i]['additionalData'] != null
+          ? jsonDecode(maps[i]['additionalData']) as Map<String, dynamic>
+          : <String, dynamic>{};
       return ElectricityBill(
         id: maps[i]['id'],
-        userId: maps[i]['id'],
+        userId: maps[i]['userId'],
         imagePath: maps[i]['imagePath'],
         extractedText: maps[i]['extractedText'],
         summary: maps[i]['summary'],
@@ -299,9 +311,10 @@ class DatabaseService {
         totalAmount: maps[i]['totalAmount'],
         consumptionKwh: maps[i]['consumptionKwh'],
         ratePerKwh: maps[i]['ratePerKwh'],
+        insights: List<String>.from(additionalData['insights'] ?? []),
         createdAt: DateTime.parse(maps[i]['createdAt']),
         tags: maps[i]['tags']?.split(',') ?? [],
-        additionalData: {},
+        additionalData: additionalData,
       );
     });
   }
@@ -342,6 +355,20 @@ class DatabaseService {
       return maps.first;
     }
     return {};
+  }
+
+  // Check if a bill with the given ID exists in the local database
+  static Future<bool> billExists(String billId) async {
+    final db = await database;
+    print('DEBUG: Checking for bill with id: $billId');
+    final List<Map<String, dynamic>> maps = await db.query(
+      _tableName,
+      where: 'id = ?',
+      whereArgs: [billId],
+      limit: 1,
+    );
+    print('DEBUG: Query result: $maps');
+    return maps.isNotEmpty;
   }
 
   // Close the database

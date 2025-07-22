@@ -3,16 +3,23 @@ import 'dart:math';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../models/electricity_bill.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class EssSavingsSimulation extends StatefulWidget {
   final List<ElectricityBill> bills;
-  const EssSavingsSimulation({Key? key, required this.bills}) : super(key: key);
+  final bool hasTerahiveEss;
+  const EssSavingsSimulation({
+    Key? key,
+    required this.bills,
+    required this.hasTerahiveEss,
+  }) : super(key: key);
 
   @override
   State<EssSavingsSimulation> createState() => _EssSavingsSimulationState();
 }
 
-class _EssSavingsSimulationState extends State<EssSavingsSimulation> with SingleTickerProviderStateMixin {
+class _EssSavingsSimulationState extends State<EssSavingsSimulation>
+    with SingleTickerProviderStateMixin {
   bool _showResult = false;
   late List<_EssSimData> _simData;
   double _totalSaved = 0;
@@ -33,8 +40,15 @@ class _EssSavingsSimulationState extends State<EssSavingsSimulation> with Single
 
   void _simulate() {
     if (widget.bills.isEmpty) return;
-    _simData = _prepareSimData(widget.bills);
-    _totalSaved = _simData.fold(0.0, (sum, d) => sum + (d.actualCost - d.essCost));
+    _simData = _prepareSimData(widget.bills, widget.hasTerahiveEss);
+    _totalSaved = _simData.fold(
+      0.0,
+      (sum, d) =>
+          sum +
+          (widget.hasTerahiveEss
+              ? (d.withoutEssCost - d.actualCost)
+              : (d.actualCost - d.essCost)),
+    );
     setState(() {
       _showResult = true;
       _showTotal = false;
@@ -48,10 +62,14 @@ class _EssSavingsSimulationState extends State<EssSavingsSimulation> with Single
     });
   }
 
-  List<_EssSimData> _prepareSimData(List<ElectricityBill> bills) {
+  List<_EssSimData> _prepareSimData(
+    List<ElectricityBill> bills,
+    bool hasTerahiveEss,
+  ) {
     final Map<String, List<ElectricityBill>> billsByMonth = {};
     for (final bill in bills) {
-      final key = '${bill.billDate.year}-${bill.billDate.month.toString().padLeft(2, '0')}';
+      final key =
+          '${bill.billDate.year}-${bill.billDate.month.toString().padLeft(2, '0')}';
       billsByMonth.putIfAbsent(key, () => []).add(bill);
     }
     final sortedMonths = billsByMonth.keys.toList()..sort();
@@ -60,14 +78,18 @@ class _EssSavingsSimulationState extends State<EssSavingsSimulation> with Single
       final month = sortedMonths[i];
       final bills = billsByMonth[month]!;
       final totalCost = bills.fold(0.0, (sum, bill) => sum + bill.totalAmount);
-      final reducedCost = totalCost * 0.7; // 30% savings
+      final essCost = totalCost * 0.7; // 30% savings
+      final withoutEssCost = totalCost / 0.7; // what it would be without ESS
       final date = DateTime.parse('$month-01');
-      data.add(_EssSimData(
-        index: i,
-        label: DateFormat('MMM yy').format(date),
-        actualCost: totalCost,
-        essCost: reducedCost,
-      ));
+      data.add(
+        _EssSimData(
+          index: i,
+          label: DateFormat('MM/yy').format(date),
+          actualCost: totalCost,
+          essCost: essCost,
+          withoutEssCost: withoutEssCost,
+        ),
+      );
     }
     return data;
   }
@@ -88,14 +110,14 @@ class _EssSavingsSimulationState extends State<EssSavingsSimulation> with Single
                 Icon(Icons.bolt, color: Colors.orange[700], size: 28),
                 const SizedBox(width: 8),
                 const Text(
-                  'TeraHive ESS Simulation',
+                  'TeraHive Saving Simulation',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             const Text(
-              'See how much you could save by installing a TeraHive ESS system! This simulation shows a 30% reduction in your electricity bill.',
+              'See how much you could save by installing a TeraHive system!',
               style: TextStyle(fontSize: 14, color: Colors.black87),
             ),
             const SizedBox(height: 16),
@@ -140,9 +162,15 @@ class _EssSavingsSimulationState extends State<EssSavingsSimulation> with Single
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildLegendItem('Current Bill', Colors.orange),
+            _buildLegendItem(
+              widget.hasTerahiveEss ? 'Without TeraHive' : 'Current Bill',
+              Colors.orange,
+            ),
             const SizedBox(width: 24),
-            _buildLegendItem('With ESS', Colors.green),
+            _buildLegendItem(
+              widget.hasTerahiveEss ? 'Your Bill' : 'With TeraHive',
+              Colors.green,
+            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -150,22 +178,52 @@ class _EssSavingsSimulationState extends State<EssSavingsSimulation> with Single
           Column(
             children: [
               Text(
-                'You could save',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.green[800]),
+                widget.hasTerahiveEss ? 'You already saved' : 'You could save',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.green[800],
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 '\$${_totalSaved.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green),
+                style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
+                ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'over the analyzed period with TeraHive ESS!',
-                style: TextStyle(fontSize: 14, color: Colors.black54),
+              Text(
+                widget.hasTerahiveEss
+                    ? 'over the analyzed period with your TeraHive!'
+                    : 'over the analyzed period with TeraHive!',
+                style: const TextStyle(fontSize: 14, color: Colors.black54),
               ),
             ],
           ),
-        Icon(Icons.celebration, color: Colors.green, size: 36),
+        // Replace the celebration icon with a clickable text for TeraHive
+        InkWell(
+          child: const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text(
+              'Curious about TeraHive? Learn more',
+              style: TextStyle(
+                color: Colors.blue,
+                fontWeight: FontWeight.bold,
+                decoration: TextDecoration.underline,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          onTap: () async {
+            final url = Uri.parse('https://www.terahive.io');
+            if (await canLaunchUrl(url)) {
+              await launchUrl(url, mode: LaunchMode.externalApplication);
+            }
+          },
+        ),
         const SizedBox(height: 8),
         TextButton(
           onPressed: () {
@@ -187,10 +245,7 @@ class _EssSavingsSimulationState extends State<EssSavingsSimulation> with Single
         Container(
           width: 16,
           height: 16,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 6),
         Text(
@@ -202,22 +257,55 @@ class _EssSavingsSimulationState extends State<EssSavingsSimulation> with Single
   }
 
   Widget _buildSimChart(double animValue) {
+    double interval = _getDynamicInterval();
     final n = _simData.length;
     final totalProgress = animValue * (n - 1);
     final currentIndex = totalProgress.floor();
     final segmentProgress = totalProgress - currentIndex;
-    List<FlSpot> essCostSpots = [];
-    // Add all previous points
+    List<FlSpot> greenSpots = [];
+    List<FlSpot> orangeSpots = [];
     for (int i = 0; i <= currentIndex && i < n; i++) {
-      essCostSpots.add(FlSpot(_simData[i].index.toDouble(), _simData[i].essCost));
+      if (widget.hasTerahiveEss) {
+        orangeSpots.add(
+          FlSpot(_simData[i].index.toDouble(), _simData[i].withoutEssCost),
+        );
+        greenSpots.add(
+          FlSpot(_simData[i].index.toDouble(), _simData[i].actualCost),
+        );
+      } else {
+        orangeSpots.add(
+          FlSpot(_simData[i].index.toDouble(), _simData[i].actualCost),
+        );
+        greenSpots.add(
+          FlSpot(_simData[i].index.toDouble(), _simData[i].essCost),
+        );
+      }
     }
-    // Interpolate the next point if not at the end
     if (currentIndex < n - 1) {
       final prev = _simData[currentIndex];
       final next = _simData[currentIndex + 1];
-      final interpY = prev.essCost + (next.essCost - prev.essCost) * segmentProgress;
-      final interpX = prev.index + (next.index - prev.index) * segmentProgress;
-      essCostSpots.add(FlSpot(interpX.toDouble(), interpY));
+      if (widget.hasTerahiveEss) {
+        final interpOrangeY =
+            prev.withoutEssCost +
+            (next.withoutEssCost - prev.withoutEssCost) * segmentProgress;
+        final interpGreenY =
+            prev.actualCost +
+            (next.actualCost - prev.actualCost) * segmentProgress;
+        final interpX =
+            prev.index + (next.index - prev.index) * segmentProgress;
+        orangeSpots.add(FlSpot(interpX.toDouble(), interpOrangeY));
+        greenSpots.add(FlSpot(interpX.toDouble(), interpGreenY));
+      } else {
+        final interpOrangeY =
+            prev.actualCost +
+            (next.actualCost - prev.actualCost) * segmentProgress;
+        final interpGreenY =
+            prev.essCost + (next.essCost - prev.essCost) * segmentProgress;
+        final interpX =
+            prev.index + (next.index - prev.index) * segmentProgress;
+        orangeSpots.add(FlSpot(interpX.toDouble(), interpOrangeY));
+        greenSpots.add(FlSpot(interpX.toDouble(), interpGreenY));
+      }
     }
     return SizedBox(
       height: 220,
@@ -228,8 +316,10 @@ class _EssSavingsSimulationState extends State<EssSavingsSimulation> with Single
             drawVerticalLine: true,
             horizontalInterval: 1,
             verticalInterval: 1,
-            getDrawingHorizontalLine: (value) => FlLine(color: Colors.grey[300]!, strokeWidth: 1),
-            getDrawingVerticalLine: (value) => FlLine(color: Colors.grey[300]!, strokeWidth: 1),
+            getDrawingHorizontalLine: (value) =>
+                FlLine(color: Colors.grey[300]!, strokeWidth: 1),
+            getDrawingVerticalLine: (value) =>
+                FlLine(color: Colors.grey[300]!, strokeWidth: 1),
           ),
           titlesData: FlTitlesData(
             show: true,
@@ -246,24 +336,21 @@ class _EssSavingsSimulationState extends State<EssSavingsSimulation> with Single
                       axisSide: meta.axisSide,
                       child: Text(
                         _simData[value.toInt()].label,
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
-                        ),
+                        style: TextStyle(color: Colors.grey[600]),
                       ),
                     );
                   }
-                  return const Text('');
+                  return const SizedBox.shrink();
                 },
               ),
             ),
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                interval: _getDynamicInterval(),
+                reservedSize: 40,
+                interval: interval,
                 getTitlesWidget: (double value, TitleMeta meta) {
-                  if (value % _getDynamicInterval() == 0) {
+                  if (value % interval == 0) {
                     return Text(
                       value.toInt().toString(),
                       style: TextStyle(
@@ -275,79 +362,34 @@ class _EssSavingsSimulationState extends State<EssSavingsSimulation> with Single
                   }
                   return const SizedBox.shrink();
                 },
-                reservedSize: 42,
               ),
             ),
           ),
           borderData: FlBorderData(
             show: true,
-            border: Border.all(color: Colors.grey[300]!),
+            border: Border.all(color: Colors.grey[300]!, width: 1),
           ),
           minX: 0,
-          maxX: (_simData.length - 1).toDouble(),
+          maxX: (n - 1).toDouble(),
           minY: 0,
-          maxY: _getMaxY(),
+          maxY:
+              [...orangeSpots, ...greenSpots].map((e) => e.y).reduce(max) * 1.1,
           lineBarsData: [
-            // Actual Cost
             LineChartBarData(
-              spots: _simData.map((d) => FlSpot(d.index.toDouble(), d.actualCost)).toList(),
+              spots: orangeSpots,
               isCurved: true,
               color: Colors.orange,
-              barWidth: 3,
-              isStrokeCapRound: true,
-              dotData: FlDotData(show: false),
-              belowBarData: BarAreaData(show: false),
+              barWidth: 4,
+              dotData: FlDotData(show: true),
             ),
-            // ESS Cost (smoothly animated left-to-right)
             LineChartBarData(
-              spots: essCostSpots,
+              spots: greenSpots,
               isCurved: true,
               color: Colors.green,
-              barWidth: 3,
-              isStrokeCapRound: true,
-              dotData: FlDotData(
-                show: true,
-                checkToShowDot: (spot, barData) {
-                  // Only show dots for fully revealed points (not the interpolated one)
-                  return spot.x <= currentIndex;
-                },
-                getDotPainter: (spot, percent, barData, index) {
-                  return FlDotCirclePainter(
-                    radius: 5,
-                    color: Colors.green,
-                    strokeWidth: 2,
-                    strokeColor: Colors.white,
-                  );
-                },
-              ),
-              belowBarData: BarAreaData(show: false),
+              barWidth: 4,
+              dotData: FlDotData(show: true),
             ),
           ],
-          lineTouchData: LineTouchData(
-            enabled: true,
-            touchTooltipData: LineTouchTooltipData(
-              tooltipBgColor: Colors.blueGrey.withOpacity(0.9),
-              getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-                return touchedBarSpots.map((barSpot) {
-                  final flSpot = barSpot;
-                  String label = '';
-                  if (flSpot.barIndex == 0) {
-                    label = 'Actual Cost: \$${flSpot.y.toStringAsFixed(2)}';
-                  } else {
-                    label = 'ESS Cost: \$${flSpot.y.toStringAsFixed(2)}';
-                  }
-                  return LineTooltipItem(
-                    label,
-                    const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  );
-                }).toList();
-              },
-            ),
-            handleBuiltInTouches: true,
-          ),
         ),
       ),
     );
@@ -365,8 +407,10 @@ class _EssSavingsSimulationState extends State<EssSavingsSimulation> with Single
     final maxY = _getMaxY();
     double interval = (maxY / 5).ceilToDouble();
     // Round up to the next multiple of 500
-    if (interval < 500) interval = 500;
-    else interval = ((interval / 500).ceil()) * 500;
+    if (interval < 250)
+      interval = 250;
+    else
+      interval = ((interval / 250).ceil()) * 250;
     return interval;
   }
 }
@@ -376,10 +420,12 @@ class _EssSimData {
   final String label;
   final double actualCost;
   final double essCost;
+  final double withoutEssCost;
   _EssSimData({
     required this.index,
     required this.label,
     required this.actualCost,
     required this.essCost,
+    required this.withoutEssCost,
   });
 }

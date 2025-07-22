@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../utils/config.dart';
+import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 
 class AIService {
   // Azure OpenAI Configuration
@@ -35,16 +37,18 @@ class AIService {
             {
               'role': 'system',
               'content':
-                  '''You are an expert in analyzing electricity bills. Extract key information and provide insights in the following JSON format:
+                  '''You are an expert in analyzing electricity bills and utility rate plans. Extract all available information and organize it in the following JSON format. All detailed extracted information (utility name, tariff, rate plan, seasons, recommendations, etc.) should be included as a single multi-line string in the insights array. If a field is not available in the input document, indicate the value as "N/A".
+
+Return JSON in this format:
 {
-  "summary": "Brief summary of the bill",
+  "summary": "Brief summary of the electricity bill or plan",
   "billDate": "YYYY-MM-DD",
   "totalAmount": 0.0,
   "consumptionKwh": 0.0,
   "ratePerKwh": 0.0,
-  "insights": ["Array of insights about the bill"],
-  "recommendations": ["Array of energy-saving recommendations"]
-}''',
+  "insights": ["All detailed extracted information as a single multi-line string"],
+}
+''',
             },
             {
               'role': 'user',
@@ -53,7 +57,7 @@ class AIService {
             },
           ],
           'temperature': 0.3,
-          'max_tokens': 1000,
+          'max_tokens': 2000,
         }),
       );
 
@@ -112,16 +116,18 @@ class AIService {
                 {
                   'type': 'text',
                   'text':
-                      '''You are an expert in analyzing electricity bills. Extract key information and provide insights in the following JSON format:
+                      '''You are an expert in analyzing electricity bills and utility rate plans. Extract all available information and organize it in the following JSON format. All detailed extracted information (utility name, tariff, rate plan, seasons, recommendations, etc.) should be included as a single multi-line string in the insights array. If a field is not available in the input document, indicate the value as "N/A".
+
+Return JSON in this format:
 {
-  "summary": "Brief summary of the bill",
+  "summary": "Brief summary of the electricity bill or plan",
   "billDate": "YYYY-MM-DD",
   "totalAmount": 0.0,
   "consumptionKwh": 0.0,
   "ratePerKwh": 0.0,
-  "insights": ["Array of insights about the bill"],
-  "recommendations": ["Array of energy-saving recommendations"]
-}''',
+  "insights": ["All detailed extracted information as a single multi-line string"],
+}
+''',
                 },
               ],
             },
@@ -139,11 +145,8 @@ class AIService {
               ],
             },
           ],
-          'max_tokens': 800,
-          'temperature': 1,
-          'top_p': 1,
-          'frequency_penalty': 0,
-          'presence_penalty': 0,
+          'temperature': 0.3,
+          'max_tokens': 2000,
         }),
       );
 
@@ -178,6 +181,296 @@ class AIService {
     }
   }
 
+  /// Analyze multiple bill images using Azure OpenAI Vision
+  static Future<Map<String, dynamic>> analyzeBillImages(
+    List<Uint8List> imageBytesList,
+  ) async {
+    // Return mock data for UI testing
+    if (!_apiEnabled) {
+      return _generateMockBillSummary("Multi-image analysis");
+    }
+
+    try {
+      // Convert all images to base64
+      final List<Map<String, dynamic>> imageMessages = imageBytesList
+          .map(
+            (bytes) => {
+              'type': 'image_url',
+              'image_url': {
+                'url': 'data:image/jpeg;base64,${base64Encode(bytes)}',
+              },
+            },
+          )
+          .toList();
+
+      final response = await http.post(
+        Uri.parse(
+          '$_azureEndpoint/openai/deployments/$_deploymentName/chat/completions?api-version=$_apiVersion',
+        ),
+        headers: {'Content-Type': 'application/json', 'api-key': _apiKey},
+        body: jsonEncode({
+          'messages': [
+            {
+              'role': 'system',
+              'content': [
+                {
+                  'type': 'text',
+                  'text':
+                      '''You are an expert in analyzing electricity bills and utility rate plans. Extract all available information and organize it in the following JSON format. Others like utility name, tariff, rate plan, rates during off / peak, duration of rates, seasons. should be included as a single multi-line string in the insights array. If a field is not available in the input document, indicate the value as "N/A" and make it compact and easy to understand and easy to read.
+
+Return JSON in this format:
+{
+  "summary": "Brief summary of the electricity bill or plan",
+  "billDate": "YYYY-MM-DD",
+  "totalAmount": 0.0,
+  "consumptionKwh": 0.0,
+  "ratePerKwh": 0.0,
+  "insights": ["All detailed extracted information as a single multi-line string"],
+}
+''',
+                },
+              ],
+            },
+            {
+              'role': 'user',
+              'content': [
+                ...imageMessages,
+                {
+                  'type': 'text',
+                  'text': 'Create a summary of these electricity bill images',
+                },
+              ],
+            },
+          ],
+          'temperature': 0.3,
+          'max_tokens': 2000,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final content = data['choices'][0]['message']['content'];
+
+        // Try to parse the JSON response
+        try {
+          return jsonDecode(content);
+        } catch (e) {
+          // If JSON parsing fails, return a structured response
+          return {
+            'summary': content,
+            'billDate': DateTime.now().toIso8601String().split('T')[0],
+            'totalAmount': 0.0,
+            'consumptionKwh': 0.0,
+            'ratePerKwh': 0.0,
+            'utilityName': 'N/A',
+            'tariffType': 'N/A',
+            'seasons': [],
+            'insights': ['Unable to extract specific data'],
+            'recommendations': [
+              'Consider uploading clearer images for better analysis',
+            ],
+          };
+        }
+      } else {
+        throw Exception('Failed to generate summary:  [${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error generating bill summary: $e');
+    }
+  }
+
+  /// Analyze base64 JPEG images using Azure OpenAI Vision
+  static Future<Map<String, dynamic>> analyzeBillBase64Jpegs(
+    List<String> base64Jpegs,
+  ) async {
+    // Return mock data for UI testing
+    if (!_apiEnabled) {
+      return _generateMockBillSummary("Multi-image analysis");
+    }
+
+    try {
+      // Prepare image messages
+      final List<Map<String, dynamic>> imageMessages = base64Jpegs
+          .map(
+            (b64) => {
+              'type': 'image_url',
+              'image_url': {'url': 'data:image/jpeg;base64,$b64'},
+            },
+          )
+          .toList();
+
+      final response = await http.post(
+        Uri.parse(
+          '$_azureEndpoint/openai/deployments/$_deploymentName/chat/completions?api-version=$_apiVersion',
+        ),
+        headers: {'Content-Type': 'application/json', 'api-key': _apiKey},
+        body: jsonEncode({
+          'messages': [
+            {
+              'role': 'system',
+              'content': [
+                {
+                  'type': 'text',
+                  'text':
+                      '''You are an expert in analyzing electricity bills and utility rate plans. Extract all available information and organize it in the following JSON format. All detailed extracted information (utility name, tariff, rate plan, seasons, recommendations, etc.) should be included as a single multi-line string in the insights array. If a field is not available in the input document, indicate the value as "N/A".
+
+Return JSON in this format:
+{
+  "summary": "Brief summary of the electricity bill or plan",
+  "billDate": "YYYY-MM-DD",
+  "totalAmount": 0.0,
+  "consumptionKwh": 0.0,
+  "ratePerKwh": 0.0,
+  "insights": ["All detailed extracted information as a single multi-line string"],
+}
+''',
+                },
+              ],
+            },
+            {
+              'role': 'user',
+              'content': [
+                ...imageMessages,
+                {
+                  'type': 'text',
+                  'text': 'Create a summary of these electricity bill images',
+                },
+              ],
+            },
+          ],
+          'temperature': 0.3,
+          'max_tokens': 2000,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final content = data['choices'][0]['message']['content'];
+
+        // Try to parse the JSON response
+        try {
+          return jsonDecode(content);
+        } catch (e) {
+          // If JSON parsing fails, return a structured response
+          return {
+            'summary': content,
+            'billDate': DateTime.now().toIso8601String().split('T')[0],
+            'totalAmount': 0.0,
+            'consumptionKwh': 0.0,
+            'ratePerKwh': 0.0,
+            'utilityName': 'N/A',
+            'tariffType': 'N/A',
+            'seasons': [],
+            'insights': ['Unable to extract specific data'],
+            'recommendations': [
+              'Consider uploading clearer images for better analysis',
+            ],
+          };
+        }
+      } else {
+        throw Exception('Failed to generate summary:  [${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error generating bill summary: $e');
+    }
+  }
+
+  /// Analyze base64 PNG images using Azure OpenAI Vision
+  static Future<Map<String, dynamic>> analyzeBillBase64Pngs(
+    List<String> base64Pngs,
+  ) async {
+    // Return mock data for UI testing
+    if (!_apiEnabled) {
+      return _generateMockBillSummary("Multi-image analysis");
+    }
+
+    try {
+      // Prepare image messages
+      final List<Map<String, dynamic>> imageMessages = base64Pngs
+          .map(
+            (b64) => {
+              'type': 'image_url',
+              'image_url': {'url': 'data:image/png;base64,$b64'},
+            },
+          )
+          .toList();
+
+      final response = await http.post(
+        Uri.parse(
+          '$_azureEndpoint/openai/deployments/$_deploymentName/chat/completions?api-version=$_apiVersion',
+        ),
+        headers: {'Content-Type': 'application/json', 'api-key': _apiKey},
+        body: jsonEncode({
+          'messages': [
+            {
+              'role': 'system',
+              'content': [
+                {
+                  'type': 'text',
+                  'text':
+                      '''You are an expert in analyzing electricity bills and utility rate plans. Extract all available information and organize it in the following JSON format. All detailed extracted information (utility name, tariff, rate plan, seasons, recommendations, etc.) should be included as a single multi-line string in the insights array. If a field is not available in the input document, indicate the value as "N/A".
+
+Return JSON in this format:
+{
+  "summary": "Brief summary of the electricity bill or plan",
+  "billDate": "YYYY-MM-DD",
+  "totalAmount": 0.0,
+  "consumptionKwh": 0.0,
+  "ratePerKwh": 0.0,
+  "insights": ["All detailed extracted information as a single multi-line string"],
+}
+''',
+                },
+              ],
+            },
+            {
+              'role': 'user',
+              'content': [
+                ...imageMessages,
+                {
+                  'type': 'text',
+                  'text': 'Create a summary of these electricity bill images',
+                },
+              ],
+            },
+          ],
+          'temperature': 0.3,
+          'max_tokens': 2000,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final content = data['choices'][0]['message']['content'];
+
+        // Try to parse the JSON response
+        try {
+          return jsonDecode(content);
+        } catch (e) {
+          // If JSON parsing fails, return a structured response
+          return {
+            'summary': content,
+            'billDate': DateTime.now().toIso8601String().split('T')[0],
+            'totalAmount': 0.0,
+            'consumptionKwh': 0.0,
+            'ratePerKwh': 0.0,
+            'utilityName': 'N/A',
+            'tariffType': 'N/A',
+            'seasons': [],
+            'insights': ['Unable to extract specific data'],
+            'recommendations': [
+              'Consider uploading clearer images for better analysis',
+            ],
+          };
+        }
+      } else {
+        throw Exception('Failed to generate summary:  [${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error generating bill summary: $e');
+    }
+  }
+
   /// Method to analyze bill from file path (for PDF conversion support)
   static Future<Map<String, dynamic>> analyzeBillFromFile(
     String filePath,
@@ -193,6 +486,28 @@ class AIService {
     } catch (e) {
       throw Exception('Error reading file: $e');
     }
+  }
+
+  /// Uploads a PDF to the backend and returns a list of base64 image strings.
+  static Future<List<String>> uploadPdfAndGetImages(File pdfFile) async {
+    final dio = Dio();
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(pdfFile.path, filename: 'bill.pdf'),
+    });
+    final response = await dio.post(
+      'http://172.20.10.3:5001/convert_pdf', // Use your backend IP and port
+      data: formData,
+    );
+    if (response.statusCode == 200) {
+      return List<String>.from(response.data['images']);
+    } else {
+      throw Exception('Failed to convert PDF');
+    }
+  }
+
+  /// Helper to convert base64 images to Uint8List for further processing
+  static List<Uint8List> base64ImagesToUint8List(List<String> base64Images) {
+    return base64Images.map((b64) => base64Decode(b64)).toList();
   }
 
   static Future<List<String>> generateEnergySavingRecommendations(
@@ -298,6 +613,82 @@ class AIService {
     }
   }
 
+  static Future<Map<String, dynamic>> generatePersonalizedSuggestions(
+    List<Map<String, dynamic>> recentBills, {
+    bool hasTerahiveEss = false,
+  }) async {
+    // Return mock suggestions for UI testing
+    if (!_apiEnabled) {
+      return _generateMockPersonalizedSuggestions(recentBills);
+    }
+
+    try {
+      final prompt = hasTerahiveEss
+          ? '''You are an energy efficiency expert. The user ALREADY has a TeraHive LiteOn Energy Suite system installed. Based on the user's recent electricity bills, provide personalized recommendations for saving even more money and energy. Do NOT recommend installing TeraHive again. Focus on further optimizations, usage habits, and other products or strategies.\n\nProvide your response in this exact JSON format:\n{\n  "summary": "Brief analysis of their consumption patterns",\n  "immediateActions": ["3-5 quick actions they can take today"],\n  "mediumTerm": ["3-5 actions for the next 1-3 months"],\n  "longTerm": ["3-5 actions for long-term savings (no need to mention TeraHive again)"],\n  "potentialSavings": "Estimated monthly/annual savings in dollars"\n}'''
+          : '''You are an energy efficiency expert specializing in residential electricity optimization. Based on the user's recent electricity bills, provide personalized recommendations for saving money and energy.\n\nIMPORTANT: Include specific recommendations for TeraHive Energy Suite product where applicable.\n\nProvide your response in this exact JSON format:\n{\n  "summary": "Brief analysis of their consumption patterns",\n  "immediateActions": ["3-5 quick actions they can take today"],\n  "mediumTerm": ["3-5 actions for the next 1-3 months"],\n  "longTerm": ["3-5 actions including TeraHive products"],\n  "potentialSavings": "Estimated monthly/annual savings in dollars",\n  "terahive Recommendations": ["Specific TeraHive product recommendations"]\n}''';
+
+      final response = await http.post(
+        Uri.parse(
+          '$_azureEndpoint/openai/deployments/$_deploymentName/chat/completions?api-version=$_apiVersion',
+        ),
+        headers: {'Content-Type': 'application/json', 'api-key': _apiKey},
+        body: jsonEncode({
+          'messages': [
+            {'role': 'system', 'content': prompt},
+            {
+              'role': 'user',
+              'content':
+                  'Analyze these 3 most recent electricity bills and provide personalized savings suggestions:\n\n${jsonEncode(recentBills)}',
+            },
+          ],
+          'temperature': 0.7,
+          'max_tokens': 1200,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final content = data['choices'][0]['message']['content'];
+
+        // Try to parse the JSON response
+        try {
+          return jsonDecode(content);
+        } catch (e) {
+          // If JSON parsing fails, return a structured response
+          return {
+            'summary': content,
+            'immediateActions': [
+              'Switch to LED bulbs',
+              'Unplug unused devices',
+              'Set thermostat to 78°F in summer',
+            ],
+            'mediumTerm': [
+              'Install a programmable thermostat',
+              'Seal air leaks around windows',
+              'Consider energy audit',
+            ],
+            'longTerm': [
+              'Install TeraHive LiteOn ESS for energy storage',
+              'Consider solar panel installation',
+              'Upgrade to energy-efficient appliances',
+            ],
+            'potentialSavings': 'Estimated \$50-100 per month',
+            'terahiveRecommendations': [
+              'TeraHive LiteOn residential ESS system',
+              'Smart energy management integration',
+            ],
+          };
+        }
+      } else {
+        throw Exception(
+          'Failed to generate suggestions: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Error generating personalized suggestions: $e');
+    }
+  }
+
   // Mock data generators for UI testing
   static Map<String, dynamic> _generateMockBillSummary(String extractedText) {
     return {
@@ -362,6 +753,44 @@ class AIService {
         'highestMonth': 7,
         'lowestMonth': 1,
       },
+    };
+  }
+
+  static Map<String, dynamic> _generateMockPersonalizedSuggestions(
+    List<Map<String, dynamic>> recentBills,
+  ) {
+    return {
+      'summary':
+          'Based on your recent bills, your electricity consumption shows a moderate increase, primarily driven by air conditioning usage. Your average monthly consumption of 450 kWh is slightly above the residential average, presenting opportunities for significant savings.',
+      'immediateActions': [
+        'Switch to LED bulbs to save up to 90% on lighting costs',
+        'Unplug unused devices to eliminate phantom power consumption',
+        'Set your thermostat to 78°F in summer for optimal efficiency',
+        'Use ceiling fans to circulate air and reduce AC usage',
+        'Wash clothes in cold water to save on water heating costs',
+      ],
+      'mediumTerm': [
+        'Install a programmable thermostat to better control temperature',
+        'Seal air leaks around windows and doors to improve insulation',
+        'Consider energy audit to identify potential inefficiencies',
+        'Upgrade to energy-efficient appliances when possible',
+        'Install smart power strips to control multiple devices',
+      ],
+      'longTerm': [
+        'Install TeraHive LiteOn ESS for energy storage to reduce reliance on grid power',
+        'Consider solar panel installation to offset electricity costs',
+        'Upgrade to energy-efficient appliances and lighting',
+        'Implement smart home automation for better energy management',
+        'Consider TeraHive LiteOn peak shaving solutions',
+      ],
+      'potentialSavings':
+          'Estimated \$75-150 per month with full implementation',
+      'terahiveRecommendations': [
+        'TeraHive LiteOn residential ESS system for energy storage',
+        'Smart energy management integration for automated optimization',
+        'Peak shaving capabilities to reduce demand charges',
+        'Backup power solutions for grid independence',
+      ],
     };
   }
 

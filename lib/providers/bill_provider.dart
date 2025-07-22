@@ -11,6 +11,7 @@ import '../utils/config.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // Added for jsonDecode
 import '../services/auth_service.dart'; // Added for AuthService
+import 'package:http_parser/http_parser.dart';
 
 class BillProvider with ChangeNotifier {
   List<ElectricityBill> _bills = [];
@@ -18,6 +19,9 @@ class BillProvider with ChangeNotifier {
   String? _error;
   ElectricityBill? _currentBill;
   Map<String, dynamic>? _statistics;
+  Map<String, dynamic>? _suggestions;
+  bool _isGeneratingSuggestions = false;
+  DateTime? _lastSuggestionGenerated;
 
   // Getters
   List<ElectricityBill> get bills => _bills;
@@ -25,11 +29,24 @@ class BillProvider with ChangeNotifier {
   String? get error => _error;
   ElectricityBill? get currentBill => _currentBill;
   Map<String, dynamic>? get statistics => _statistics;
+  Map<String, dynamic>? get suggestions => _suggestions;
+  bool get isGeneratingSuggestions => _isGeneratingSuggestions;
+  DateTime? get lastSuggestionGenerated => _lastSuggestionGenerated;
 
   // Helper to get current userId
   String? getCurrentUserId() {
     final authService = AuthService();
     return authService.currentUser?.id;
+  }
+
+  // Helper to safely parse a double from dynamic input
+  double parseDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) {
+      final v = double.tryParse(value);
+      if (v != null) return v;
+    }
+    return 0.0;
   }
 
   // Sync local bills to backend
@@ -162,15 +179,13 @@ class BillProvider with ChangeNotifier {
         totalAmount: 125.50,
         consumptionKwh: 450.0,
         ratePerKwh: 0.12,
+        insights: [
+          'Your usage is within normal range',
+          'Consistent with previous months',
+        ],
         createdAt: DateTime(2024, 1, 15),
         tags: ['residential', 'monthly'],
-        additionalData: {
-          'insights': [
-            'Your usage is within normal range',
-            'Consistent with previous months',
-          ],
-          'recommendations': ['Consider LED bulbs', 'Unplug unused devices'],
-        },
+        additionalData: {},
       ),
       ElectricityBill(
         id: 'sample-2',
@@ -183,18 +198,13 @@ class BillProvider with ChangeNotifier {
         totalAmount: 138.60,
         consumptionKwh: 480.0,
         ratePerKwh: 0.12,
+        insights: [
+          'Usage increased by 6.7%',
+          'Higher than average for February',
+        ],
         createdAt: DateTime(2024, 2, 15),
         tags: ['residential', 'monthly'],
-        additionalData: {
-          'insights': [
-            'Usage increased by 6.7%',
-            'Higher than average for February',
-          ],
-          'recommendations': [
-            'Check for air leaks',
-            'Optimize thermostat settings',
-          ],
-        },
+        additionalData: {},
       ),
       ElectricityBill(
         id: 'sample-3',
@@ -207,15 +217,13 @@ class BillProvider with ChangeNotifier {
         totalAmount: 149.60,
         consumptionKwh: 520.0,
         ratePerKwh: 0.12,
+        insights: [
+          'Usage increased by 8.3%',
+          'Spring heating may be contributing',
+        ],
         createdAt: DateTime(2024, 3, 15),
         tags: ['residential', 'monthly'],
-        additionalData: {
-          'insights': [
-            'Usage increased by 8.3%',
-            'Spring heating may be contributing',
-          ],
-          'recommendations': ['Consider energy audit', 'Upgrade insulation'],
-        },
+        additionalData: {},
       ),
       ElectricityBill(
         id: 'sample-4',
@@ -228,15 +236,13 @@ class BillProvider with ChangeNotifier {
         totalAmount: 109.60,
         consumptionKwh: 380.0,
         ratePerKwh: 0.12,
+        insights: [
+          'Usage decreased by 26.9%',
+          'Excellent improvement',
+        ],
         createdAt: DateTime(2024, 4, 15),
         tags: ['residential', 'monthly'],
-        additionalData: {
-          'insights': ['Usage decreased by 26.9%', 'Excellent improvement'],
-          'recommendations': [
-            'Maintain current practices',
-            'Consider solar panels',
-          ],
-        },
+        additionalData: {},
       ),
       ElectricityBill(
         id: 'sample-5',
@@ -249,12 +255,13 @@ class BillProvider with ChangeNotifier {
         totalAmount: 121.20,
         consumptionKwh: 420.0,
         ratePerKwh: 0.12,
+        insights: [
+          'Usage increased by 10.5%',
+          'AC usage starting',
+        ],
         createdAt: DateTime(2024, 5, 15),
         tags: ['residential', 'monthly'],
-        additionalData: {
-          'insights': ['Usage increased by 10.5%', 'AC usage starting'],
-          'recommendations': ['Use ceiling fans', 'Set thermostat to 78°F'],
-        },
+        additionalData: {},
       ),
     ];
   }
@@ -293,6 +300,7 @@ class BillProvider with ChangeNotifier {
               totalAmount: (json['costs']?['total'] ?? 0).toDouble(),
               consumptionKwh: (json['consumption']?['total'] ?? 0).toDouble(),
               ratePerKwh: 0.0,
+              insights: List<String>.from(json['insights'] ?? []),
               createdAt:
                   DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
               tags: [],
@@ -414,6 +422,11 @@ class BillProvider with ChangeNotifier {
       final Map<String, dynamic> aiResponse = await AIService.analyzeBillImage(
         imageBytes,
       );
+      // Compose insights: add all new info as a single string
+      String detailedInsight = '';
+      if (aiResponse['insights'] != null && aiResponse['insights'] is List) {
+        detailedInsight += (aiResponse['insights'] as List).join('\n');
+      }
       final bill = ElectricityBill(
         id: const Uuid().v4(),
         userId: userId,
@@ -422,18 +435,16 @@ class BillProvider with ChangeNotifier {
         summary: aiResponse['summary'] ?? 'No summary available',
         billDate:
             DateTime.tryParse(aiResponse['billDate'] ?? '') ?? DateTime.now(),
-        totalAmount: (aiResponse['totalAmount'] ?? 0.0).toDouble(),
-        consumptionKwh: (aiResponse['consumptionKwh'] ?? 0.0).toDouble(),
-        ratePerKwh: (aiResponse['ratePerKwh'] ?? 0.0).toDouble(),
+        totalAmount: parseDouble(aiResponse['totalAmount']),
+        consumptionKwh: parseDouble(aiResponse['consumptionKwh']),
+        ratePerKwh: parseDouble(aiResponse['ratePerKwh']),
+        insights: [detailedInsight],
         createdAt: DateTime.now(),
         tags: [],
-        additionalData: {
-          'insights': aiResponse['insights'] ?? [],
-          'recommendations': aiResponse['recommendations'] ?? [],
-        },
+        additionalData: aiResponse,
       );
       await DatabaseService.insertBill(bill);
-      await _uploadBillToBackend(bill, imageBytes);
+      await _uploadBillToBackend(bill, imageBytes); // Re-enabled backend upload
       _bills.insert(0, bill);
       _currentBill = bill;
       await loadStatistics();
@@ -446,7 +457,170 @@ class BillProvider with ChangeNotifier {
     }
   }
 
-  // Upload bill to backend API
+  // Process a new bill from multiple images
+  Future<void> processBillFromImages(List<File> imageFiles) async {
+    _setLoading(true);
+    _error = null;
+
+    try {
+      final userId = getCurrentUserId();
+      if (userId == null) throw Exception('No userId for bill creation');
+      final String savedImagePath = '';
+      final List<Uint8List> imageBytesList = [];
+      for (final file in imageFiles) {
+        imageBytesList.add(await file.readAsBytes());
+      }
+      final Map<String, dynamic> aiResponse = await AIService.analyzeBillImages(
+        imageBytesList,
+      );
+      String detailedInsight = '';
+      if (aiResponse['insights'] != null && aiResponse['insights'] is List) {
+        detailedInsight += (aiResponse['insights'] as List).join('\n');
+      }
+      final bill = ElectricityBill(
+        id: const Uuid().v4(),
+        userId: userId,
+        imagePath: savedImagePath,
+        extractedText: aiResponse['summary'] ?? 'No text extracted',
+        summary: aiResponse['summary'] ?? 'No summary available',
+        billDate:
+            DateTime.tryParse(aiResponse['billDate'] ?? '') ?? DateTime.now(),
+        totalAmount: parseDouble(aiResponse['totalAmount']),
+        consumptionKwh: parseDouble(aiResponse['consumptionKwh']),
+        ratePerKwh: parseDouble(aiResponse['ratePerKwh']),
+        insights: [detailedInsight],
+        createdAt: DateTime.now(),
+        tags: [],
+        additionalData: aiResponse,
+      );
+      await DatabaseService.insertBill(bill);
+      await _uploadBillToBackendMulti(bill, imageBytesList); // Re-enabled backend upload
+      _bills.insert(0, bill);
+      _currentBill = bill;
+      await loadStatistics();
+      _error = null;
+    } catch (e) {
+      _error = 'Failed to process bill: $e';
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Process a new bill from multiple images (bytes)
+  Future<void> processBillFromImagesBytes(List<Uint8List> imageBytesList) async {
+    _setLoading(true);
+    _error = null;
+    try {
+      final userId = getCurrentUserId();
+      if (userId == null) throw Exception('No userId for bill creation');
+      final String savedImagePath = '';
+      final Map<String, dynamic> aiResponse = await AIService.analyzeBillImages(imageBytesList);
+      final bill = ElectricityBill(
+        id: const Uuid().v4(),
+        userId: userId,
+        imagePath: savedImagePath,
+        extractedText: aiResponse['summary'] ?? 'No text extracted',
+        summary: aiResponse['summary'] ?? 'No summary available',
+        billDate: DateTime.tryParse(aiResponse['billDate'] ?? '') ?? DateTime.now(),
+        totalAmount: parseDouble(aiResponse['totalAmount']),
+        consumptionKwh: parseDouble(aiResponse['consumptionKwh']),
+        ratePerKwh: parseDouble(aiResponse['ratePerKwh']),
+        insights: [aiResponse['insights']?.join('\n') ?? ''],
+        createdAt: DateTime.now(),
+        tags: [],
+        additionalData: aiResponse,
+      );
+      await DatabaseService.insertBill(bill);
+      // await _uploadBillToBackendMulti(bill, imageBytesList); // Disabled backend upload
+      _bills.insert(0, bill);
+      _currentBill = bill;
+      await loadStatistics();
+      _error = null;
+    } catch (e) {
+      _error = 'Failed to process bill: $e';
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Process a new bill from base64 JPEGs
+  Future<void> processBillFromBase64Jpegs(List<String> base64Jpegs) async {
+    _setLoading(true);
+    _error = null;
+    try {
+      final userId = getCurrentUserId();
+      if (userId == null) throw Exception('No userId for bill creation');
+      final String savedImagePath = '';
+      final Map<String, dynamic> aiResponse = await AIService.analyzeBillBase64Jpegs(base64Jpegs);
+      final bill = ElectricityBill(
+        id: const Uuid().v4(),
+        userId: userId,
+        imagePath: savedImagePath,
+        extractedText: aiResponse['summary'] ?? 'No text extracted',
+        summary: aiResponse['summary'] ?? 'No summary available',
+        billDate: DateTime.tryParse(aiResponse['billDate'] ?? '') ?? DateTime.now(),
+        totalAmount: parseDouble(aiResponse['totalAmount']),
+        consumptionKwh: parseDouble(aiResponse['consumptionKwh']),
+        ratePerKwh: parseDouble(aiResponse['ratePerKwh']),
+        insights: [aiResponse['insights']?.join('\n') ?? ''],
+        createdAt: DateTime.now(),
+        tags: [],
+        additionalData: aiResponse,
+      );
+      await DatabaseService.insertBill(bill);
+      // Optionally upload to backend if needed (disabled)
+      _bills.insert(0, bill);
+      _currentBill = bill;
+      await loadStatistics();
+      _error = null;
+    } catch (e) {
+      _error = 'Failed to process bill: $e';
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Process a new bill from base64 PNGs
+  Future<void> processBillFromBase64Pngs(List<String> base64Pngs) async {
+    _setLoading(true);
+    _error = null;
+    try {
+      final userId = getCurrentUserId();
+      if (userId == null) throw Exception('No userId for bill creation');
+      final String savedImagePath = '';
+      final Map<String, dynamic> aiResponse = await AIService.analyzeBillBase64Pngs(base64Pngs);
+      final bill = ElectricityBill(
+        id: const Uuid().v4(),
+        userId: userId,
+        imagePath: savedImagePath,
+        extractedText: aiResponse['summary'] ?? 'No text extracted',
+        summary: aiResponse['summary'] ?? 'No summary available',
+        billDate: DateTime.tryParse(aiResponse['billDate'] ?? '') ?? DateTime.now(),
+        totalAmount: parseDouble(aiResponse['totalAmount']),
+        consumptionKwh: parseDouble(aiResponse['consumptionKwh']),
+        ratePerKwh: parseDouble(aiResponse['ratePerKwh']),
+        insights: [aiResponse['insights']?.join('\n') ?? ''],
+        createdAt: DateTime.now(),
+        tags: [],
+        additionalData: aiResponse,
+      );
+      await DatabaseService.insertBill(bill);
+      _bills.insert(0, bill);
+      _currentBill = bill;
+      await loadStatistics();
+      _error = null;
+    } catch (e) {
+      _error = 'Failed to process bill: $e';
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Upload bill to backend API (single image)
   Future<void> _uploadBillToBackend(
     ElectricityBill bill,
     Uint8List imageBytes,
@@ -471,12 +645,13 @@ class BillProvider with ChangeNotifier {
       // Add headers
       request.headers.addAll(authService.getAuthHeaders());
 
-      // Add image file with correct field name 'billImage'
+      // Add image file with correct field name 'billImages' for consistency
       request.files.add(
         http.MultipartFile.fromBytes(
-          'billImage', // Changed from 'image' to 'billImage'
+          'billImages', // <-- use plural for consistency
           imageBytes,
           filename: 'bill_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          contentType: MediaType('image', 'jpeg'), // <-- Set content type
         ),
       );
 
@@ -490,27 +665,93 @@ class BillProvider with ChangeNotifier {
       if (response.statusCode == 201 || response.statusCode == 200) {
         print('✅ Bill uploaded successfully to backend');
         final responseData = jsonDecode(responseBody);
+        // Optionally update local DB with backend ID if needed
+      } else {
+        print(
+          '❌ Failed to upload bill to backend: ${response.statusCode} - $responseBody',
+        );
+        throw Exception(
+          'Failed to upload bill to backend: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      print('❌ Error uploading bill to backend: $e');
+      // Don't throw here - we still want to save locally even if backend upload fails
+    }
+  }
+
+  // Upload bill with multiple images to backend API
+  Future<void> _uploadBillToBackendMulti(
+    ElectricityBill bill,
+    List<Uint8List> imageBytesList,
+  ) async {
+    try {
+      print('🌐 Uploading bill with multiple images to backend...');
+      final authService = AuthService();
+      final token = authService.token;
+      final userId = getCurrentUserId();
+
+      if (token == null || userId == null) {
+        print('❌ No authentication token or userId for bill upload');
+        return;
+      }
+
+      if (imageBytesList.isEmpty) {
+        // No images: send JSON only
+        final response = await http.post(
+          Uri.parse('${AuthService.baseUrl}/bills/upload'),
+          headers: {
+            ...authService.getAuthHeaders(),
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(bill.toJson()),
+        );
+        print('📡 Upload response status: ${response.statusCode}');
+        print('📡 Upload response body: ${response.body}');
+        if (response.statusCode == 201 || response.statusCode == 200) {
+          print('✅ Bill uploaded successfully to backend (JSON only)');
+        } else {
+          print('❌ Failed to upload bill to backend: ${response.statusCode} - ${response.body}');
+          throw Exception('Failed to upload bill to backend: ${response.statusCode}');
+        }
+        return;
+      }
+
+      // Create multipart request to /upload endpoint
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${AuthService.baseUrl}/bills/upload'),
+      );
+
+      // Add headers
+      request.headers.addAll(authService.getAuthHeaders());
+
+      // Add all image files with field name 'billImages'
+      for (int i = 0; i < imageBytesList.length; i++) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'billImages', // <-- must match backend
+            imageBytesList[i],
+            filename: 'bill_${DateTime.now().millisecondsSinceEpoch}_$i.jpg',
+            contentType: MediaType('image', 'jpeg'), // <-- Set content type
+          ),
+        );
+      }
+
+      // Send request
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+
+      print('📡 Upload response status: ${response.statusCode}');
+      print('📡 Upload response body: $responseBody');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        print('✅ Bill uploaded successfully to backend');
+        final responseData = jsonDecode(responseBody);
 
         // Update bill ID with backend ID if provided
-        if (responseData['data']?['billId'] != null) {
-          final newBill = ElectricityBill(
-            id: responseData['data']['billId'],
-            userId: userId,
-            imagePath: bill.imagePath,
-            extractedText: bill.extractedText,
-            summary: bill.summary,
-            billDate: bill.billDate,
-            totalAmount: bill.totalAmount,
-            consumptionKwh: bill.consumptionKwh,
-            ratePerKwh: bill.ratePerKwh,
-            createdAt: bill.createdAt,
-            tags: bill.tags,
-            additionalData: bill.additionalData,
-          );
-          print('🔄 Created new bill with backend ID: ${newBill.id}');
-          // Replace the old bill in the local database
-          await DatabaseService.deleteBill(bill.id);
-          await DatabaseService.insertBill(newBill);
+        if (responseData['data']?['billIds'] != null) {
+          // Optionally update local DB with backend IDs if needed
         }
       } else {
         print(
@@ -618,6 +859,82 @@ class BillProvider with ChangeNotifier {
       _error = 'Failed to analyze patterns: $e';
       return {};
     }
+  }
+
+  // Generate personalized suggestions based on recent bills
+  Future<Map<String, dynamic>?> generatePersonalizedSuggestions() async {
+    // Check if we have at least 3 bills
+    if (_bills.length < 3) {
+      _error = 'You need at least 3 bills to generate personalized suggestions';
+      notifyListeners();
+      return null;
+    }
+
+    // Check if suggestions were already generated after the last bill upload
+    if (_lastSuggestionGenerated != null && _suggestions != null) {
+      final lastBillUpload = _bills.isNotEmpty ? _bills.first.createdAt : DateTime.now();
+      if (_lastSuggestionGenerated!.isAfter(lastBillUpload)) {
+        _error = 'Suggestions already generated. Upload a new bill to generate new suggestions.';
+        notifyListeners();
+        return null;
+      }
+    }
+
+    // Check if already generating
+    if (_isGeneratingSuggestions) {
+      return null;
+    }
+
+    _setGeneratingSuggestions(true);
+    _error = null;
+
+    try {
+      print('🤖 Generating personalized suggestions...');
+      
+      // Get the 3 most recent bills by billDate
+      final sortedByBillDate = List<ElectricityBill>.from(_bills)
+        ..sort((a, b) => b.billDate.compareTo(a.billDate));
+      // In generatePersonalizedSuggestions, use the new model fields for insights and recommendations
+      final recentBills = sortedByBillDate.take(3).map((bill) => {
+        'billDate': bill.billDate.toIso8601String(),
+        'totalAmount': bill.totalAmount,
+        'consumptionKwh': bill.consumptionKwh,
+        'ratePerKwh': bill.ratePerKwh,
+        'summary': bill.summary,
+        'insights': bill.insights,
+      }).toList();
+
+      // Get TeraHive status from AuthProvider
+      final hasTerahiveEss = AuthService().currentUser?.hasTerahiveEss ?? false;
+
+      // Generate suggestions using AI service
+      final suggestions = await AIService.generatePersonalizedSuggestions(recentBills, hasTerahiveEss: hasTerahiveEss);
+      
+      _suggestions = suggestions;
+      _lastSuggestionGenerated = DateTime.now();
+      
+      print('✅ Personalized suggestions generated successfully');
+      return suggestions;
+    } catch (e) {
+      print('❌ Failed to generate suggestions: $e');
+      _error = 'Failed to generate suggestions: $e';
+      return null;
+    } finally {
+      _setGeneratingSuggestions(false);
+    }
+  }
+
+  // Clear suggestions
+  void clearSuggestions() {
+    _suggestions = null;
+    _lastSuggestionGenerated = null;
+    notifyListeners();
+  }
+
+  // Set generating suggestions state
+  void _setGeneratingSuggestions(bool generating) {
+    _isGeneratingSuggestions = generating;
+    notifyListeners();
   }
 
   // Set current bill
@@ -732,6 +1049,7 @@ class BillProvider with ChangeNotifier {
             totalAmount: (json['costs']?['total'] ?? 0).toDouble(),
             consumptionKwh: (json['consumption']?['total'] ?? 0).toDouble(),
             ratePerKwh: 0.0,
+            insights: List<String>.from(json['insights'] ?? []),
             createdAt:
                 DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
             tags: [],
@@ -761,6 +1079,48 @@ class BillProvider with ChangeNotifier {
       }
     } catch (e) {
       print('❌ Error refreshing bills: $e');
+    }
+  }
+
+  // Process a new bill from image bytes (for PDF-to-image backend integration)
+  Future<void> processBillFromImageBytes(List<Uint8List> imageBytes) async {
+    _setLoading(true);
+    _error = null;
+    try {
+      final userId = getCurrentUserId();
+      if (userId == null) throw Exception('No userId for bill creation');
+      final String savedImagePath = '';
+      final Map<String, dynamic> aiResponse = await AIService.analyzeBillImages(imageBytes);
+      String detailedInsight = '';
+      if (aiResponse['insights'] != null && aiResponse['insights'] is List) {
+        detailedInsight += (aiResponse['insights'] as List).join('\n');
+      }
+      final bill = ElectricityBill(
+        id: const Uuid().v4(),
+        userId: userId,
+        imagePath: savedImagePath,
+        extractedText: aiResponse['summary'] ?? 'No text extracted',
+        summary: aiResponse['summary'] ?? 'No summary available',
+        billDate: DateTime.tryParse(aiResponse['billDate'] ?? '') ?? DateTime.now(),
+        totalAmount: parseDouble(aiResponse['totalAmount']),
+        consumptionKwh: parseDouble(aiResponse['consumptionKwh']),
+        ratePerKwh: parseDouble(aiResponse['ratePerKwh']),
+        insights: [detailedInsight],
+        createdAt: DateTime.now(),
+        tags: [],
+        additionalData: aiResponse,
+      );
+      await DatabaseService.insertBill(bill);
+      await _uploadBillToBackendMulti(bill, imageBytes); // Re-enabled backend upload
+      _bills.insert(0, bill);
+      _currentBill = bill;
+      await loadStatistics();
+      _error = null;
+    } catch (e) {
+      _error = 'Failed to process bill: $e';
+      rethrow;
+    } finally {
+      _setLoading(false);
     }
   }
 }

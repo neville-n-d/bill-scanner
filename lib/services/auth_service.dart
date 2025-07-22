@@ -199,6 +199,41 @@ class AuthService {
     await _clearStoredAuth();
   }
 
+  // Update TeraHive ESS installation status
+  Future<Map<String, dynamic>> updateTerahiveEssStatus(bool hasTerahiveEss) async {
+    if (_token == null) {
+      print('Not authenticated');
+      return {'success': false, 'message': 'Not authenticated'};
+    }
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/users/terahive-status'),
+        headers: {
+          'Authorization': 'Bearer $_token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'hasTerahiveEss': hasTerahiveEss}),
+      );
+      print('PUT /users/terahive-status response: ${response.statusCode} ${response.body}');
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['success'] == true) {
+        // The backend returns hasTerahiveEss and userType, but not the full user object
+        // Optionally, you may want to refresh the user profile here
+        await getProfile();
+        return {'success': true, 'user': _currentUser};
+      } else {
+        print('Failed to update profile: ${data['message']}');
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Failed to update profile',
+        };
+      }
+    } catch (e) {
+      print('Network error updating TeraHive status: $e');
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
   // Get headers for authenticated requests
   Map<String, String> getAuthHeaders() {
     return {

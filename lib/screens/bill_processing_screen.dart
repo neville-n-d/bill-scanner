@@ -5,11 +5,11 @@ import '../providers/bill_provider.dart';
 import '../screens/bill_detail_screen.dart';
 
 class BillProcessingScreen extends StatefulWidget {
-  final File imageFile;
+  final List<File> imageFiles;
 
   const BillProcessingScreen({
     super.key,
-    required this.imageFile,
+    required this.imageFiles,
   });
 
   @override
@@ -24,6 +24,7 @@ class _BillProcessingScreenState extends State<BillProcessingScreen> {
   @override
   void initState() {
     super.initState();
+    print('DEBUG: BillProcessingScreen initState called with imageFiles.length = ${widget.imageFiles.length}');
     _processBill();
   }
 
@@ -37,14 +38,14 @@ class _BillProcessingScreenState extends State<BillProcessingScreen> {
       final billProvider = context.read<BillProvider>();
 
       setState(() {
-        _currentStep = 'Saving image...';
+        _currentStep = 'Saving images...';
       });
 
       setState(() {
         _currentStep = 'Analyzing bill with AI...';
       });
 
-      await billProvider.processBillFromImage(widget.imageFile);
+      await billProvider.processBillFromImages(widget.imageFiles);
 
       if (mounted) {
         setState(() {
@@ -107,25 +108,35 @@ class _BillProcessingScreenState extends State<BillProcessingScreen> {
   }
 
   Widget _buildImagePreview() {
-    return Container(
-      width: 200,
-      height: 150,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.file(
-          widget.imageFile,
-          fit: BoxFit.cover,
-        ),
+    return SizedBox(
+      height: 100,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: widget.imageFiles.length,
+        itemBuilder: (context, index) {
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.file(
+                widget.imageFiles[index],
+                fit: BoxFit.cover,
+              ),
+            ),
+          );
+        },
       ),
     );
   }

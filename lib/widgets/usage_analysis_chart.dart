@@ -100,10 +100,10 @@ class _UsageAnalysisChartState extends State<UsageAnalysisChart> {
     double maxY = _getMaxY(chartData);
     double interval = (maxY / 5).ceilToDouble();
     // Round up to the next multiple of 500
-    if (interval < 500)
-      interval = 500;
+    if (interval < 250)
+      interval = 250;
     else
-      interval = ((interval / 500).ceil()) * 500;
+      interval = ((interval / 250).ceil()) * 250;
     return Container(
       height: 250,
       padding: const EdgeInsets.all(16),
@@ -355,9 +355,9 @@ class _UsageAnalysisChartState extends State<UsageAnalysisChart> {
       consumptionSpots.add(FlSpot(i.toDouble(), totalConsumption));
       costSpots.add(FlSpot(i.toDouble(), totalCost));
 
-      // Format label (e.g., "Jan 2024")
+      // Format label as MM/yy (e.g., 01/25)
       final date = DateTime.parse('$month-01');
-      labels.add(DateFormat('MMM yyyy').format(date));
+      labels.add(DateFormat('MM/yy').format(date));
     }
 
     return {

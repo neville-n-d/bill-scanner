@@ -31,12 +31,15 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = (process.env.ALLOWED_IMAGE_TYPES || 'image/jpeg,image/png,image/webp').split(',');
-  
-  if (allowedTypes.includes(file.mimetype)) {
+  console.log(`[DEBUG] Multer fileFilter: received file ${file.originalname}, mimetype: ${file.mimetype}`);
+  if (
+    file.mimetype === 'image/jpeg' ||
+    file.mimetype === 'image/png' ||
+    file.mimetype === 'image/webp'
+  ) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only JPEG, PNG, and WebP images are allowed.'), false);
+    cb(new Error('Invalid file type. Only JPEG, PNG, and WebP images are allowed.'));
   }
 };
 
@@ -80,76 +83,68 @@ const validateBillData = [
 
 // Always set userId on bill upload!
 // @route   POST /api/bills/upload
-// @desc    Upload and process a new bill
+// @desc    Upload and process new bills (multiple images)
 // @access  Private
-router.post('/upload', auth, upload.single('billImage'), async (req, res) => {
+router.post('/upload', auth, upload.array('billImages', 10), async (req, res) => {
   try {
-    if (!req.file) {
+    if (!req.files || req.files.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Bill image is required',
+        message: 'At least one bill image is required',
       });
     }
 
-    // Get image dimensions
-    const imageInfo = await sharp(req.file.path).metadata();
-    
-    // Create thumbnail
-    const thumbnailPath = req.file.path.replace(path.extname(req.file.path), '_thumb.jpg');
-    await sharp(req.file.path)
-      .resize(300, 300, { fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: 80 })
-      .toFile(thumbnailPath);
+    // Debug: print number of files and their mimetypes
+    console.log(`[DEBUG] Received ${req.files.length} files:`);
+    req.files.forEach((file, idx) => {
+      console.log(`[DEBUG] File #${idx + 1}: ${file.originalname}, mimetype: ${file.mimetype}`);
+    });
 
-    // Create bill record
-    const bill = new Bill({
-      userId: req.user.userId,
-      billNumber: `TEMP-${Date.now()}`, // Temporary, will be updated after AI analysis
-      utilityProvider: {
-        name: 'Unknown', // Will be updated after AI analysis
-      },
-      billDate: new Date(),
-      dueDate: new Date(),
-      billingPeriod: {
-        startDate: new Date(),
-        endDate: new Date(),
-      },
-      consumption: {
-        total: 0,
-      },
-      costs: {
-        total: 0,
-        currency: 'USD',
-      },
-      aiAnalysis: {
-        summary: 'Processing...',
-      },
-      image: {
-        originalPath: req.file.path,
-        thumbnailPath,
-        fileSize: req.file.size,
-        mimeType: req.file.mimetype,
-        dimensions: {
-          width: imageInfo.width,
-          height: imageInfo.height,
+    const billIds = [];
+    for (const file of req.files) {
+      // Get image dimensions
+      const imageInfo = await sharp(file.path).metadata();
+      // Create thumbnail
+      const thumbnailPath = file.path.replace(path.extname(file.path), '_thumb.jpg');
+      await sharp(file.path)
+        .resize(300, 300, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 80 })
+        .toFile(thumbnailPath);
+
+      // Create bill record
+      const bill = new Bill({
+        userId: req.user.userId,
+        billNumber: `TEMP-${Date.now()}`, // Temporary, will be updated after AI analysis
+        utilityProvider: { name: 'Unknown' },
+        billDate: new Date(),
+        dueDate: new Date(),
+        billingPeriod: { startDate: new Date(), endDate: new Date() },
+        consumption: { total: 0 },
+        costs: { total: 0, currency: 'USD' },
+        aiAnalysis: { summary: 'Processing...' },
+        image: {
+          originalPath: file.path,
+          thumbnailPath,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+          dimensions: { width: imageInfo.width, height: imageInfo.height },
+          processingStatus: 'processing',
         },
-        processingStatus: 'processing',
-      },
-      source: 'camera_scan',
-    });
-
-    await bill.save();
-
-    // Process with AI asynchronously
-    processBillWithAI(bill._id, req.file.path).catch(error => {
-      logger.error('AI processing failed for bill:', bill._id, error);
-    });
+        source: 'camera_scan',
+      });
+      await bill.save();
+      billIds.push(bill._id);
+      // Process with AI asynchronously
+      processBillWithAI(bill._id, file.path).catch(error => {
+        logger.error('AI processing failed for bill:', bill._id, error);
+      });
+    }
 
     res.status(201).json({
       success: true,
-      message: 'Bill uploaded successfully. Processing with AI...',
+      message: 'Bills uploaded successfully. Processing with AI...',
       data: {
-        billId: bill._id,
+        billIds,
         processingStatus: 'processing',
       },
     });
@@ -157,7 +152,7 @@ router.post('/upload', auth, upload.single('billImage'), async (req, res) => {
     logger.error('Bill upload error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to upload bill',
+      message: 'Failed to upload bills',
     });
   }
 });
