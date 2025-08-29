@@ -30,13 +30,13 @@ class BillCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              if (onSelectionChanged != null) _buildSelectionCheckbox(),
+              if (onSelectionChanged != null) _buildSelectionCheckbox(context),
               _buildImagePreview(),
               const SizedBox(width: 16),
               Expanded(
-                child: _buildBillInfo(),
+                child: _buildBillInfo(context),
               ),
-              _buildAmountInfo(),
+              _buildAmountInfo(context),
               if (onDelete != null && onSelectionChanged == null) _buildDeleteButton(),
             ],
           ),
@@ -66,10 +66,10 @@ class BillCard extends StatelessWidget {
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
             return Container(
-              color: Colors.grey[300],
-              child: const Icon(
+              color: Theme.of(context).colorScheme.surfaceVariant, 
+              child: Icon(
                 Icons.receipt,
-                color: Colors.grey,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             );
           },
@@ -78,7 +78,7 @@ class BillCard extends StatelessWidget {
     );
   }
 
-  Widget _buildBillInfo() {
+  Widget _buildBillInfo(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -94,7 +94,7 @@ class BillCard extends StatelessWidget {
           '${bill.consumptionKwh.toStringAsFixed(1)} kWh',
           style: TextStyle(
             fontSize: 14,
-            color: Colors.grey[600],
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
           ),
         ),
         const SizedBox(height: 4),
@@ -104,7 +104,7 @@ class BillCard extends StatelessWidget {
               : bill.summary,
           style: TextStyle(
             fontSize: 12,
-            color: Colors.grey[500],
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
@@ -113,16 +113,16 @@ class BillCard extends StatelessWidget {
     );
   }
 
-  Widget _buildAmountInfo() {
+  Widget _buildAmountInfo(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Text(
           '\$${bill.totalAmount.toStringAsFixed(2)}',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.green,
+            color: Theme.of(context).colorScheme.secondary,
           ),
         ),
         const SizedBox(height: 4),
@@ -130,14 +130,14 @@ class BillCard extends StatelessWidget {
           DateFormat('MMM dd').format(bill.createdAt),
           style: TextStyle(
             fontSize: 12,
-            color: Colors.grey[500],
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSelectionCheckbox() {
+  Widget _buildSelectionCheckbox(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(right: 12),
       child: Checkbox(
@@ -145,7 +145,7 @@ class BillCard extends StatelessWidget {
         onChanged: (value) {
           onSelectionChanged?.call();
         },
-        activeColor: Colors.blue,
+        activeColor: Theme.of(context).colorScheme.primary,
       ),
     );
   }

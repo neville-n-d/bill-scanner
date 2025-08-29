@@ -12,8 +12,29 @@ import '../widgets/usage_analysis_chart.dart';
 import '../widgets/ess_savings_simulation.dart';
 import '../providers/auth_provider.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final billProvider = context.read<BillProvider>();
+      final authProvider = context.read<AuthProvider>();
+      authProvider.setAuthStateCallback((isLoggedIn) {
+        billProvider.onAuthStateChanged(isLoggedIn);
+      });
+      await billProvider.initialize();
+      if (authProvider.isLoggedIn) {
+        await billProvider.loadBills();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,14 +42,13 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text(
           'Bill Analyzer',
-          style: TextStyle(color: Colors.black),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-            onPressed: () async {
-              await context.read<BillProvider>().refreshBillsFromBackend();
+            icon: const Icon(Icons.history),
+            tooltip: 'History',
+            onPressed: () {
+              Navigator.pushNamed(context, '/history');
             },
           ),
           IconButton(
@@ -49,25 +69,37 @@ class HomeScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          return SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildWelcomeSection(context, billProvider),
-                const SizedBox(height: 24),
-                _buildQuickStats(context, billProvider),
-                const SizedBox(height: 24),
-                _buildAnalyzeGraph(context, billProvider),
-                if (AppConfig.enableDebugLogs) ...[
+          return RefreshIndicator(
+            onRefresh: () async {
+              await context.read<BillProvider>().refreshBillsFromBackend();
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildWelcomeSection(context, billProvider),
                   const SizedBox(height: 24),
-                  _buildDebugInfo(context, billProvider),
+                  _buildQuickStats(context, billProvider),
+                  const SizedBox(height: 24),
+                  _buildAnalyzeGraph(context, billProvider),
+                  if (AppConfig.enableDebugLogs) ...[
+                    const SizedBox(height: 24),
+                    _buildDebugInfo(context, billProvider),
+                  ],
                 ],
-              ],
+              ),
             ),
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.pushNamed(context, '/camera');
+        },
+        child: const Icon(Icons.camera_alt),
+        tooltip: 'Scan Bill',
       ),
     );
   }
@@ -93,21 +125,10 @@ class HomeScreen extends StatelessWidget {
               'Ready to analyze your electricity bills and save money?',
               style: Theme.of(
                 context,
-              ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
+              ).textTheme.bodyLarge?.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
             ),
             const SizedBox(height: 16),
-            if (billProvider.bills.isEmpty)
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pushNamed(context, '/camera');
-                },
-                icon: const Icon(Icons.camera_alt),
-                label: const Text('Scan Your First Bill'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
-                  foregroundColor: Colors.white,
-                ),
-              ),
+            // Removed the 'Scan Your First Bill' button
           ],
         ),
       ),

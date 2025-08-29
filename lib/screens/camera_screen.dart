@@ -775,7 +775,7 @@ class _CameraScreenState extends State<CameraScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Please wait while we analyze your bill',
+                'Please wait',
                 style: TextStyle(fontSize: 14, color: Colors.grey),
               ),
             ],

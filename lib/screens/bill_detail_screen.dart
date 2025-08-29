@@ -69,11 +69,11 @@ class BillDetailScreen extends StatelessWidget {
           children: [
             _buildBillImage(),
             const SizedBox(height: 24),
-            _buildBillSummary(),
+            _buildBillSummary(context),
             const SizedBox(height: 24),
-            _buildBillDetails(),
+            _buildBillDetails(context),
             const SizedBox(height: 24),
-            _buildInsights(),
+            _buildInsights(context),
           ],
         ),
       ),
@@ -104,7 +104,7 @@ class BillDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBillSummary() {
+  Widget _buildBillSummary(BuildContext context) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -113,7 +113,7 @@ class BillDetailScreen extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.summarize, color: Colors.blue),
+                Icon(Icons.summarize, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
                   'Summary',
@@ -129,7 +129,7 @@ class BillDetailScreen extends StatelessWidget {
               bill.summary,
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.grey[700],
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
                 height: 1.5,
               ),
             ),
@@ -139,7 +139,7 @@ class BillDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBillDetails() {
+  Widget _buildBillDetails(BuildContext context) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -148,7 +148,7 @@ class BillDetailScreen extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.receipt, color: Colors.green),
+                Icon(Icons.receipt, color: Theme.of(context).colorScheme.tertiary),
                 const SizedBox(width: 8),
                 Text(
                   'Bill Details',
@@ -160,30 +160,30 @@ class BillDetailScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            _buildDetailRow('Bill Date', DateFormat('MMM dd, yyyy').format(bill.billDate)),
-            _buildDetailRow('Total Amount', '\$${bill.totalAmount.toStringAsFixed(2)}'),
-            _buildDetailRow('Consumption', '${bill.consumptionKwh.toStringAsFixed(2)} kWh'),
-            _buildDetailRow('Rate per kWh', '\$${bill.ratePerKwh.toStringAsFixed(4)}'),
-            _buildDetailRow('Processed', DateFormat('MMM dd, yyyy HH:mm').format(bill.createdAt)),
+            _buildDetailRow(context, 'Bill Date', DateFormat('MMM dd, yyyy').format(bill.billDate)),
+            _buildDetailRow(context, 'Total Amount', '\$${bill.totalAmount.toStringAsFixed(2)}'),
+            _buildDetailRow(context, 'Consumption', '${bill.consumptionKwh.toStringAsFixed(2)} kWh'),
+            _buildDetailRow(context, 'Rate per kWh', '\$${bill.ratePerKwh.toStringAsFixed(4)}'),
+            _buildDetailRow(context, 'Processed', DateFormat('MMM dd, yyyy HH:mm').format(bill.createdAt)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(BuildContext context, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
-          ),
+                        Text(
+                label,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                ),
+              ),
           Text(
             value,
             style: TextStyle(
@@ -196,7 +196,7 @@ class BillDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInsights() {
+  Widget _buildInsights(BuildContext context) {
     if (bill.insights.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -208,7 +208,7 @@ class BillDetailScreen extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.insights, color: Colors.deepPurple),
+                Icon(Icons.insights, color: Theme.of(context).colorScheme.secondary),
                 const SizedBox(width: 8),
                 Text(
                   'Insights',
@@ -225,10 +225,10 @@ class BillDetailScreen extends StatelessWidget {
                   child: Text(
                     insight,
                     style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[700],
-                      height: 1.5,
-                    ),
+                       fontSize: 16,
+                       color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                       height: 1.5,
+                     ),
                   ),
                 )),
           ],
@@ -259,9 +259,9 @@ class BillDetailScreen extends StatelessWidget {
                 if (context.mounted) {
                   Navigator.pop(context); // Go back to history screen
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Bill deleted successfully'),
-                      backgroundColor: Colors.green,
+                    SnackBar(
+                      content: const Text('Bill deleted successfully'),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                     ),
                   );
                 }
@@ -270,7 +270,7 @@ class BillDetailScreen extends StatelessWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Failed to delete bill: $e'),
-                      backgroundColor: Colors.red,
+                      backgroundColor: Theme.of(context).colorScheme.error,
                     ),
                   );
                 }

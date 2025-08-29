@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/bill_provider.dart';
 import '../screens/bill_detail_screen.dart';
+import '../services/bill_validator.dart';
 
 class BillProcessingScreen extends StatefulWidget {
   final List<File> imageFiles;
@@ -20,6 +21,7 @@ class _BillProcessingScreenState extends State<BillProcessingScreen> {
   bool _isProcessing = false;
   String _currentStep = 'Initializing...';
   String? _error;
+  final BillValidator _billValidator = BillValidator();
 
   @override
   void initState() {
@@ -35,6 +37,35 @@ class _BillProcessingScreenState extends State<BillProcessingScreen> {
     });
 
     try {
+      // Validate the first image before sending to OpenAI
+      setState(() {
+        _currentStep = 'Validating bill image...';
+      });
+      final imageBytes = await widget.imageFiles[0].readAsBytes();
+      String validationResult = await _billValidator.validate(imageBytes);
+      if (validationResult == 'non_bill') {
+        if (mounted) {
+          setState(() {
+            _isProcessing = false;
+            _currentStep = 'Validation failed';
+          });
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Invalid Image'),
+              content: const Text('The uploaded image is not recognized as an electricity bill. Please try again.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
       final billProvider = context.read<BillProvider>();
 
       setState(() {

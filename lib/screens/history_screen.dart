@@ -31,7 +31,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       appBar: AppBar(
         title: _isSelectionMode
             ? Text('${_selectedBills.length} selected')
-            : const Text('Bill History', style: TextStyle(color: Colors.black)),
+            : const Text('Bill History'),
         leading: _isSelectionMode
             ? IconButton(
                 icon: const Icon(Icons.close),
@@ -231,7 +231,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,
-              ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
+              ).textTheme.bodyLarge?.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)), 
             ),
             const SizedBox(height: 24),
             if (_searchQuery.isEmpty)

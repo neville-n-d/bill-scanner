@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/bill_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/theme_provider.dart';
 import '../main.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -13,7 +14,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
-  bool _darkModeEnabled = false;
   String _currency = 'USD';
   String _energyUnit = 'kWh';
 
@@ -45,18 +45,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
               ),
-              _buildListTile(
-                icon: Icons.dark_mode,
-                title: 'Dark Mode',
-                subtitle: 'Use dark theme for the app',
-                trailing: Switch(
-                  value: _darkModeEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _darkModeEnabled = value;
-                    });
-                  },
-                ),
+              Consumer<ThemeProvider>(
+                builder: (context, themeProvider, child) {
+                  return _buildListTile(
+                    icon: Icons.dark_mode,
+                    title: 'Dark Mode',
+                    subtitle: 'Use dark theme for the app',
+                    trailing: Switch(
+                      value: themeProvider.isDarkMode,
+                      onChanged: (value) {
+                        themeProvider.toggleTheme();
+                      },
+                    ),
+                  );
+                },
               ),
             ],
           ),

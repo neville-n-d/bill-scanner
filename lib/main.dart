@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/bill_provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/bill_detail_screen.dart';
 import 'screens/history_screen.dart';
@@ -24,42 +25,23 @@ class ElectricityBillApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => BillProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
-      child: MaterialApp(
-        title: 'Electricity Bill Analyzer',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.blue,
-            brightness: Brightness.light,
-          ),
-          appBarTheme: const AppBarTheme(
-            elevation: 0,
-            centerTitle: true,
-            titleTextStyle: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          cardTheme: CardThemeData(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(48),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
-            ),
-          ),
-        ),
-        home: const AuthWrapper(),
-        debugShowCheckedModeBanner: false,
-        routes: {'/camera': (context) => const CameraScreen()},
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp(
+            title: 'Electricity Bill Analyzer',
+            theme: themeProvider.lightTheme,
+            darkTheme: themeProvider.darkTheme,
+            themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            home: const AuthWrapper(),
+            debugShowCheckedModeBanner: false,
+            routes: {
+              '/camera': (context) => const CameraScreen(),
+              '/history': (context) => const HistoryScreen(),
+            },
+          );
+        },
       ),
     );
   }
@@ -93,83 +75,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
         }
 
         if (authProvider.isLoggedIn) {
-          return const MainScreen();
+          return const HomeScreen();
         }
 
         return const LoginScreen();
       },
-    );
-  }
-}
-
-class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
-
-  @override
-  State<MainScreen> createState() => _MainScreenState();
-}
-
-class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 0;
-
-  final List<Widget> _screens = [const HomeScreen(), const HistoryScreen()];
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final billProvider = context.read<BillProvider>();
-      final authProvider = context.read<AuthProvider>();
-      authProvider.setAuthStateCallback((isLoggedIn) {
-        billProvider.onAuthStateChanged(isLoggedIn);
-      });
-      await billProvider.initialize();
-      if (authProvider.isLoggedIn) {
-        await billProvider.loadBills();
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: _screens[_currentIndex],
-      floatingActionButton: SizedBox(
-        width: 72,
-        height: 72,
-        child: FloatingActionButton(
-          onPressed: () {
-            Permission.camera.request();
-            Navigator.pushNamed(context, '/camera');
-          },
-          backgroundColor: Theme.of(context).primaryColor,
-          child: const Icon(Icons.camera_alt, size: 30),
-          shape: const CircleBorder(),
-          elevation: 2,
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: SizedBox(
-        height: 105,
-        child: FABBottomAppBar(
-          items: [
-            FABBottomAppBarItem(iconData: Icons.home, text: 'Home'),
-            FABBottomAppBarItem(iconData: Icons.history, text: 'History'),
-          ],
-          height: 105,
-          iconSize: 30,
-          backgroundColor: Colors.white,
-          color: Colors.grey,
-          selectedColor: Theme.of(context).primaryColor,
-          notchedShape: const CircularNotchedRectangle(),
-          onTabSelected: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          selectedIndex: _currentIndex,
-        ),
-      ),
     );
   }
 }
